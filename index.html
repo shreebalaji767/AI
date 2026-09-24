@@ -1,594 +1,240 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-    >
-
-    <meta
-        name="theme-color"
-        content="#08090d"
-    >
+    <title>ANSWER MACHINE — Questionable Intelligence Online</title>
 
     <meta
         name="description"
-        content="ANSWER MACHINE — ridiculous answers, unstable personalities, mood swings and unnecessary confidence."
+        content="ANSWER MACHINE — Ask anything. Regret everything."
     >
 
-    <title>ANSWER MACHINE — Ask Anything</title>
-
-    <link
-        rel="stylesheet"
-        href="style.css"
-    >
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-    <div class="ambient ambient-one"></div>
-    <div class="ambient ambient-two"></div>
+<div class="site-shell">
 
-    <!-- ======================================================
-         HEADER
-         ====================================================== -->
+    <!-- HEADER -->
+    <header class="topbar">
+        <button class="logo-button" id="logoButton" type="button" aria-label="Reset Answer Machine">
+            <span class="logo-main">ANSWER</span>
+            <span class="logo-machine">MACHINE</span>
+        </button>
 
-    <header class="site-header">
-
-        <div class="header-inner">
-
-            <button
-                class="logo-button"
-                id="logoButton"
-                type="button"
-                aria-label="Reset Answer Machine"
-            >
-
-                <span class="logo-mark">
-                    A
-                </span>
-
-                <span class="logo-text">
-
-                    <strong>
-                        ANSWER
-                    </strong>
-
-                    <span>
-                        MACHINE
-                    </span>
-
-                </span>
-
-            </button>
-
-            <div class="header-status">
-
-                <span class="status-dot"></span>
-
-                <span>
-                    QUESTIONABLE INTELLIGENCE ONLINE
-                </span>
-
-            </div>
-
+        <div class="online-status">
+            <span class="status-dot"></span>
+            QUESTIONABLE INTELLIGENCE ONLINE
         </div>
-
     </header>
 
 
-    <main>
-
-        <!-- ==================================================
-             HERO
-             ================================================== -->
+    <!-- LANDING PAGE -->
+    <main id="landingPage">
 
         <section class="hero">
 
-            <div class="hero-inner">
+            <div class="hero-mark" aria-hidden="true">🤖</div>
 
-                <div class="eyebrow">
-
-                    <span>
-                        🤖
-                    </span>
-
-                    <span>
-                        100% UNNECESSARY ANALYSIS
-                    </span>
-
-                </div>
-
-
-                <h1>
-                    Ask anything.<br>
-                    <span>
-                        Regret everything.
-                    </span>
-                </h1>
-
-
-                <p class="hero-copy">
-
-                    Type a question in English or Hindi.
-                    The machine will select a personality,
-                    develop a mood, think some questionable
-                    thoughts, and produce an answer with
-                    absolutely unnecessary confidence.
-
-                </p>
-
-
-                <!-- QUESTION CARD -->
-
-                <div class="question-card">
-
-                    <div class="question-card-top">
-
-                        <label for="question">
-                            YOUR QUESTION
-                        </label>
-
-                        <span id="characterCount">
-                            0 characters
-                        </span>
-
-                    </div>
-
-
-                    <textarea
-                        id="question"
-                        rows="4"
-                        maxlength="1000"
-                        autocomplete="off"
-                        spellcheck="true"
-                        placeholder="Ask something ridiculous... / कुछ भी पूछिए..."
-                        aria-label="Your question"
-                    ></textarea>
-
-
-                    <div class="question-actions">
-
-                        <span class="shortcut">
-                            CTRL / CMD + ENTER
-                        </span>
-
-                        <button
-                            class="ask-button"
-                            id="askButton"
-                            type="button"
-                        >
-
-                            <span>
-                                ASK THE MACHINE
-                            </span>
-
-                            <span class="button-arrow">
-                                →
-                            </span>
-
-                        </button>
-
-                    </div>
-
-                </div>
-
-
-                <!-- QUICK PROMPTS -->
-
-                <div class="quick-section">
-
-                    <div class="quick-label">
-                        TRY ONE OF THESE
-                    </div>
-
-
-                    <div class="quick-grid">
-
-                        <button
-                            class="quick-prompt"
-                            type="button"
-                            data-prompt="Why is my computer so slow?"
-                        >
-                            💻 Why is my computer so slow?
-                        </button>
-
-
-                        <button
-                            class="quick-prompt"
-                            type="button"
-                            data-prompt="What is the meaning of life?"
-                        >
-                            🌌 What is the meaning of life?
-                        </button>
-
-
-                        <button
-                            class="quick-prompt"
-                            type="button"
-                            data-prompt="मैं इतना थका हुआ क्यों हूँ?"
-                        >
-                            😴 मैं इतना थका हुआ क्यों हूँ?
-                        </button>
-
-
-                        <button
-                            class="quick-prompt"
-                            type="button"
-                            data-prompt="क्या मुझे अमीर बनने के लिए नौकरी छोड़ देनी चाहिए?"
-                        >
-                            💰 क्या मुझे अमीर बनने के लिए नौकरी छोड़ देनी चाहिए?
-                        </button>
-
-                    </div>
-
-                </div>
-
+            <div class="hero-kicker">
+                100% UNNECESSARY ANALYSIS
             </div>
 
-        </section>
+            <h1>
+                Ask anything.<br>
+                <span>Regret everything.</span>
+            </h1>
 
-
-        <!-- ==================================================
-             PROCESSING
-             ================================================== -->
-
-        <section
-            class="processing-card hidden"
-            id="processingCard"
-            aria-live="polite"
-        >
-
-            <div class="processing-head">
-
-                <div>
-
-                    <div class="section-kicker">
-                        MACHINE THINKING
-                    </div>
-
-                    <h2>
-                        Making this unnecessarily complicated.
-                    </h2>
-
-                </div>
-
-                <strong id="processingPercent">
-                    0%
-                </strong>
-
-            </div>
-
-
-            <div class="progress-track">
-
-                <div
-                    class="progress-bar"
-                    id="progressBar"
-                ></div>
-
-            </div>
-
-
-            <p id="processingMessage">
-                Waiting for a questionable question...
+            <p class="hero-description">
+                Type a question in English or Hindi. The machine will select
+                a personality, develop a mood, think some questionable thoughts,
+                and produce an answer with absolutely unnecessary confidence.
             </p>
 
         </section>
 
 
-        <!-- ==================================================
-             ANSWER
-             ================================================== -->
+        <!-- QUESTION AREA -->
+        <section class="question-section">
 
-        <section
-            class="answer-section hidden"
-            id="answerSection"
-            aria-live="polite"
-        >
+            <div class="section-label-row">
+                <label for="question">YOUR QUESTION</label>
 
-            <div class="answer-head">
-
-                <div>
-
-                    <div class="section-kicker">
-                        THE MACHINE HAS SPOKEN
-                    </div>
-
-                    <h2>
-                        Your completely unnecessary answer
-                    </h2>
-
-                </div>
-
-
-                <div
-                    class="answer-emoji"
-                    id="answerEmoji"
-                >
-                    🤖
-                </div>
-
+                <span id="characterCount">0 characters</span>
             </div>
 
+            <div class="question-box">
 
-            <div class="answer-grid">
+                <textarea
+                    id="question"
+                    maxlength="1000"
+                    rows="5"
+                    dir="auto"
+                    autocomplete="off"
+                    spellcheck="true"
+                    placeholder="Ask something completely reasonable..."
+                    aria-label="Your question"
+                ></textarea>
 
+                <div class="question-bottom">
 
-                <!-- FINAL ANSWER -->
-
-                <article class="answer-card">
-
-                    <div class="answer-label">
-
-                        <span>
-                            FINAL ANSWER
-                        </span>
-
-                        <span class="live-pill">
-                            LIVE
-                        </span>
-
-                    </div>
-
-
-                    <div
-                        class="answer-content"
-                        id="answerContent"
-                    ></div>
-
+                    <span class="keyboard-hint">
+                        CTRL / CMD + ENTER
+                    </span>
 
                     <button
-                        class="another-button"
-                        id="anotherButton"
+                        id="askButton"
+                        class="ask-button"
                         type="button"
                     >
-                        🎲 Give me another answer
+                        <span>ASK THE MACHINE</span>
+                        <span class="button-arrow">→</span>
                     </button>
 
-                </article>
-
-
-                <!-- INTERNAL DIAGNOSTICS -->
-
-                <aside class="analysis-card">
-
-                    <div class="analysis-title">
-                        INTERNAL DIAGNOSTICS
-                    </div>
-
-
-                    <div class="thought-box">
-
-                        <span class="mini-label">
-                            INNER THOUGHT
-                        </span>
-
-                        <p id="innerThought"></p>
-
-                    </div>
-
-
-                    <div class="diagnostic-list">
-
-
-                        <div class="diagnostic">
-
-                            <span>
-                                PERSONALITY
-                            </span>
-
-                            <strong id="personality">
-                                —
-                            </strong>
-
-                        </div>
-
-
-                        <div class="diagnostic">
-
-                            <span>
-                                MOOD
-                            </span>
-
-                            <strong id="mood">
-                                —
-                            </strong>
-
-                        </div>
-
-
-                        <div class="diagnostic">
-
-                            <span>
-                                LANGUAGE
-                            </span>
-
-                            <strong id="language">
-                                —
-                            </strong>
-
-                        </div>
-
-
-                        <div class="diagnostic">
-
-                            <span>
-                                TOPIC
-                            </span>
-
-                            <strong id="topic">
-                                —
-                            </strong>
-
-                        </div>
-
-
-                        <div class="diagnostic">
-
-                            <span>
-                                ANSWER TYPE
-                            </span>
-
-                            <strong id="answerType">
-                                —
-                            </strong>
-
-                        </div>
-
-
-                        <div class="diagnostic confidence-row">
-
-                            <span>
-                                CONFIDENCE
-                            </span>
-
-                            <strong id="confidence">
-                                —
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-                </aside>
+                </div>
 
             </div>
 
         </section>
 
 
-        <!-- ==================================================
-             FEATURES
-             ================================================== -->
+        <!-- QUICK PROMPTS -->
+        <section class="prompts-section">
 
-        <section class="features">
+            <div class="section-label">
+                TRY ONE OF THESE
+            </div>
 
-            <div class="feature-intro">
+            <div class="prompt-list">
 
-                <div class="section-kicker">
+                <button
+                    class="quick-prompt"
+                    type="button"
+                    data-prompt="Why is my computer so slow?"
+                >
+                    <span>💻</span>
+                    <span>Why is my computer so slow?</span>
+                </button>
+
+                <button
+                    class="quick-prompt"
+                    type="button"
+                    data-prompt="What is the meaning of life?"
+                >
+                    <span>🌌</span>
+                    <span>What is the meaning of life?</span>
+                </button>
+
+                <button
+                    class="quick-prompt"
+                    type="button"
+                    data-prompt="मैं इतना थका हुआ क्यों हूँ?"
+                >
+                    <span>😴</span>
+                    <span>मैं इतना थका हुआ क्यों हूँ?</span>
+                </button>
+
+                <button
+                    class="quick-prompt"
+                    type="button"
+                    data-prompt="क्या मुझे अमीर बनने के लिए नौकरी छोड़ देनी चाहिए?"
+                >
+                    <span>💰</span>
+                    <span>क्या मुझे अमीर बनने के लिए नौकरी छोड़ देनी चाहिए?</span>
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- CAPABILITIES -->
+        <section class="capabilities-section">
+
+            <div class="capabilities-heading">
+                <div class="section-label">
                     ENGINE CAPABILITIES
                 </div>
 
                 <h2>
                     It takes your question<br>
-                    far too seriously.
+                    <span>far too seriously.</span>
                 </h2>
-
             </div>
 
 
-            <div class="feature-grid">
+            <div class="capabilities-grid">
 
+                <article class="capability">
+                    <div class="capability-icon">🎭</div>
 
-                <article class="feature">
-
-                    <span>
-                        🎭
-                    </span>
-
-                    <h3>
-                        Multiple Personalities
-                    </h3>
+                    <h3>Multiple Personalities</h3>
 
                     <p>
-                        Professor, genius, chaos goblin,
-                        corporate robot, existentialist and more.
+                        Professor, genius, chaos goblin, corporate robot,
+                        existentialist and more.
                     </p>
-
                 </article>
 
 
-                <article class="feature">
+                <article class="capability">
+                    <div class="capability-icon">🌪️</div>
 
-                    <span>
-                        🌪️
-                    </span>
-
-                    <h3>
-                        Mood Swings
-                    </h3>
+                    <h3>Mood Swings</h3>
 
                     <p>
-                        The machine's emotional stability
-                        is entirely optional.
+                        The machine's emotional stability is entirely optional.
                     </p>
-
                 </article>
 
 
-                <article class="feature">
+                <article class="capability">
+                    <div class="capability-icon">🧠</div>
 
-                    <span>
-                        🧠
-                    </span>
-
-                    <h3>
-                        Inner Thoughts
-                    </h3>
+                    <h3>Inner Monologue</h3>
 
                     <p>
-                        See the completely unnecessary
-                        internal monologue behind the answer.
+                        Completely unnecessary fictional thoughts from inside
+                        the machine.
                     </p>
-
                 </article>
 
 
-                <article class="feature">
+                <article class="capability">
+                    <div class="capability-icon">🇮🇳</div>
 
-                    <span>
-                        🇮🇳
-                    </span>
-
-                    <h3>
-                        English + Hindi
-                    </h3>
+                    <h3>English + Hindi</h3>
 
                     <p>
-                        Ask in Hindi and receive Hindi answers,
-                        including Devanagari-aware matching.
+                        Ask in Hindi and receive Hindi answers with
+                        Devanagari-aware matching.
                     </p>
-
                 </article>
 
 
-                <article class="feature">
+                <article class="capability">
+                    <div class="capability-icon">😏</div>
 
-                    <span>
-                        😏
-                    </span>
-
-                    <h3>
-                        Sarcasm Engine
-                    </h3>
+                    <h3>Sarcasm Engine</h3>
 
                     <p>
-                        Because a normal answer would be
-                        far too responsible.
+                        Because a normal answer would be far too responsible.
                     </p>
-
                 </article>
 
 
-                <article class="feature">
+                <article class="capability">
+                    <div class="capability-icon">💀</div>
 
-                    <span>
-                        💀
-                    </span>
-
-                    <h3>
-                        Dark Humor
-                    </h3>
+                    <h3>Dark Humor</h3>
 
                     <p>
-                        Absurd, fictional dark comedy without
-                        turning the machine into a disaster.
+                        Absurd fictional dark comedy without turning the
+                        machine into a disaster.
                     </p>
-
                 </article>
 
             </div>
@@ -598,38 +244,179 @@
     </main>
 
 
-    <!-- ======================================================
-         FOOTER
-         ====================================================== -->
+    <!-- PROCESSING -->
+    <section
+        id="processingCard"
+        class="processing-section hidden"
+        aria-live="polite"
+    >
 
-    <footer class="site-footer">
+        <div class="processing-inner">
 
-        <div>
+            <div class="processing-icon">🤖</div>
 
-            <strong>
-                ANSWER MACHINE
-            </strong>
+            <div class="processing-label">
+                PROCESSING QUESTION
+            </div>
 
-            <span>
-                Built with questionable logic and excessive confidence.
-            </span>
+            <div
+                id="processingMessage"
+                class="processing-message"
+            >
+                Consulting absolutely unnecessary expertise...
+            </div>
+
+            <div class="progress-track">
+                <div
+                    id="progressBar"
+                    class="progress-bar"
+                ></div>
+            </div>
+
+            <div
+                id="processingPercent"
+                class="processing-percent"
+            >
+                0%
+            </div>
 
         </div>
 
-        <span>
+    </section>
+
+
+    <!-- ANSWER -->
+    <section
+        id="answerSection"
+        class="answer-section hidden"
+        aria-live="polite"
+    >
+
+        <div class="answer-container">
+
+            <div class="answer-top">
+
+                <div>
+                    <div class="section-label">
+                        ANSWER MACHINE
+                    </div>
+
+                    <h2>
+                        The machine has spoken.
+                    </h2>
+                </div>
+
+                <div class="answer-badges">
+
+                    <span id="languageBadge" class="answer-badge">
+                        ENGLISH
+                    </span>
+
+                    <span id="moodBadge" class="answer-badge">
+                        SUSPICIOUS
+                    </span>
+
+                    <span id="personalityBadge" class="answer-badge">
+                        PROFESSOR
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <article class="answer-card">
+
+                <div
+                    id="answerContent"
+                    class="answer-content"
+                    dir="auto"
+                ></div>
+
+                <div class="inner-monologue">
+
+                    <div class="inner-title">
+                        <span>🧠</span>
+                        INNER MONOLOGUE
+                    </div>
+
+                    <div
+                        id="innerThought"
+                        class="inner-text"
+                        dir="auto"
+                    ></div>
+
+                </div>
+
+            </article>
+
+
+            <div class="answer-meta">
+
+                <div class="meta-item">
+                    <span>CONFIDENCE</span>
+                    <strong id="confidence">98.7%</strong>
+                </div>
+
+                <div class="meta-item">
+                    <span>TOPIC</span>
+                    <strong id="topic">GENERAL</strong>
+                </div>
+
+                <div class="meta-item">
+                    <span>ANSWER TYPE</span>
+                    <strong id="answerType">QUESTIONABLE</strong>
+                </div>
+
+            </div>
+
+
+            <div class="answer-actions">
+
+                <button
+                    id="anotherButton"
+                    class="secondary-button"
+                    type="button"
+                >
+                    ← ASK ANOTHER
+                </button>
+
+                <button
+                    id="copyButton"
+                    class="secondary-button"
+                    type="button"
+                >
+                    COPY ANSWER
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- FOOTER -->
+    <footer class="site-footer">
+
+        <div class="footer-brand">
+            <strong>ANSWER MACHINE</strong>
+            <span>
+                Built with questionable logic and excessive confidence.
+            </span>
+        </div>
+
+        <div class="footer-tech">
             STATIC • NO LOGIN • NO DATABASE • NO API
-        </span>
+        </div>
 
     </footer>
 
+</div>
 
-    <!-- ======================================================
-         JAVASCRIPT
-         ====================================================== -->
 
-    <script src="data/brain.js"></script>
-    <script src="app.js"></script>
+<script src="data/brain.js"></script>
+<script src="app.js"></script>
 
 </body>
-
 </html>
