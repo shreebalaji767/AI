@@ -1,1030 +1,915 @@
-/* =========================================================
-   ANSWER MACHINE
-   Static browser-side answer engine
+(() => {
+    "use strict";
 
-   No server
-   No database
-   No LocalStorage
-   No API
-   ========================================================= */
+    const brain = window.BRAIN;
 
-
-/* =========================================================
-   ELEMENTS
-   ========================================================= */
-
-const questionInput = document.getElementById("question");
-const characterCount = document.getElementById("characterCount");
-
-const askButton = document.getElementById("askButton");
-const anotherButton = document.getElementById("anotherButton");
-
-const logoButton = document.getElementById("logoButton");
-
-const processingCard = document.getElementById("processingCard");
-const processingPercent = document.getElementById("processingPercent");
-const processingMessage = document.getElementById("processingMessage");
-const progressBar = document.getElementById("progressBar");
-
-const answerSection = document.getElementById("answerSection");
-const answerContent = document.getElementById("answerContent");
-
-const confidenceElement = document.getElementById("confidence");
-const topicElement = document.getElementById("topic");
-const answerTypeElement = document.getElementById("answerType");
-
-const quickPrompts = document.querySelectorAll(".quick-prompt");
-
-
-/* =========================================================
-   STATE
-   ========================================================= */
-
-let processingTimer = null;
-let isProcessing = false;
-
-
-/* =========================================================
-   BRAIN
-   ========================================================= */
-
-const brain = window.BRAIN || {};
-
-
-/* =========================================================
-   FALLBACK DATA
-   ========================================================= */
-
-const fallbackBrain = {
-
-    openings: [
-        "After an extremely serious investigation, the answer is surprisingly simple.",
-        "This has been analyzed by several highly questionable experts.",
-        "The short answer is yes, although reality has made things unnecessarily complicated.",
-        "There is actually a perfectly logical explanation for this.",
-        "Scientists have spent years avoiding this exact question.",
-        "The answer begins with one important fact that nobody asked for.",
-        "This is easier to understand once you stop expecting the universe to make sense."
-    ],
-
-    endings: [
-        "So that is basically the situation.",
-        "And that is the scientifically convenient explanation.",
-        "In conclusion, everything is probably fine.",
-        "Therefore, the universe can continue operating normally.",
-        "That is the answer. Please use it responsibly.",
-        "And now you know something you cannot un-know.",
-        "Nobody needs to investigate this any further."
-    ],
-
-    thinking: [
-        "Thinking very hard...",
-        "Consulting the imaginary experts...",
-        "Looking for unnecessary evidence...",
-        "Calculating something that probably matters...",
-        "Checking the highly questionable database...",
-        "Asking the internal committee...",
-        "Making this sound more complicated than it is..."
-    ],
-
-    confidence: [
-        91,
-        94,
-        97,
-        99,
-        87,
-        96,
-        98
-    ],
-
-    fallback: [
-        "The available evidence strongly suggests that this is one of those situations where everyone pretends to understand what is happening.",
-        "There are several possible explanations, but the most convenient one is also the most entertaining.",
-        "Nobody has completely solved this problem yet, so the responsible approach is to sound extremely confident anyway.",
-        "This appears to be caused by a combination of physics, human decisions, and at least one unnecessary complication.",
-        "The answer depends on circumstances, timing, and how dramatically you describe the problem."
-    ],
-
-    topics: {},
-
-    questionTypes: {},
-
-    special: []
-
-};
-
-
-/* =========================================================
-   MERGE GENERATED BRAIN WITH FALLBACK
-   ========================================================= */
-
-const data = {
-
-    openings:
-        Array.isArray(brain.openings)
-            ? brain.openings
-            : fallbackBrain.openings,
-
-    endings:
-        Array.isArray(brain.endings)
-            ? brain.endings
-            : fallbackBrain.endings,
-
-    thinking:
-        Array.isArray(brain.thinking)
-            ? brain.thinking
-            : fallbackBrain.thinking,
-
-    confidence:
-        Array.isArray(brain.confidence)
-            ? brain.confidence
-            : fallbackBrain.confidence,
-
-    fallback:
-        Array.isArray(brain.fallback)
-            ? brain.fallback
-            : fallbackBrain.fallback,
-
-    topics:
-        brain.topics || fallbackBrain.topics,
-
-    questionTypes:
-        brain.questionTypes || fallbackBrain.questionTypes,
-
-    special:
-        Array.isArray(brain.special)
-            ? brain.special
-            : fallbackBrain.special
-
-};
-
-
-/* =========================================================
-   RANDOM HELPER
-   ========================================================= */
-
-function randomItem(array) {
-
-    if (!Array.isArray(array) || array.length === 0) {
-        return "";
+    if (!brain) {
+        console.error("ANSWER MACHINE: brain.js was not loaded.");
+        return;
     }
 
-    return array[
-        Math.floor(Math.random() * array.length)
-    ];
-}
+    const $ = (id) => document.getElementById(id);
 
+    const el = {
+        logoButton: $("logoButton"),
+        question: $("question"),
+        characterCount: $("characterCount"),
+        askButton: $("askButton"),
+        anotherButton: $("anotherButton"),
 
-/* =========================================================
-   CLEAN TEXT
-   ========================================================= */
+        processingCard: $("processingCard"),
+        processingPercent: $("processingPercent"),
+        processingMessage: $("processingMessage"),
+        progressBar: $("progressBar"),
 
-function cleanQuestion(question) {
+        answerSection: $("answerSection"),
+        answerContent: $("answerContent"),
+        innerThought: $("innerThought"),
+        personality: $("personality"),
+        mood: $("mood"),
+        confidence: $("confidence"),
+        topic: $("topic"),
+        answerType: $("answerType"),
+        language: $("language"),
+        answerEmoji: $("answerEmoji"),
 
-    return question
-        .trim()
-        .replace(/\s+/g, " ");
-
-}
-
-
-/* =========================================================
-   TOPIC DETECTION
-   ========================================================= */
-
-function detectTopic(question) {
-
-    const text = question.toLowerCase();
-
-    let bestTopic = "GENERAL";
-    let bestScore = 0;
-
-    const topicKeywords = {
-
-        PROGRAMMING: [
-            "code",
-            "coding",
-            "program",
-            "programming",
-            "python",
-            "javascript",
-            "html",
-            "css",
-            "java",
-            "c#",
-            "software",
-            "developer",
-            "website",
-            "bug",
-            "computer"
-        ],
-
-        MONEY: [
-            "money",
-            "cash",
-            "salary",
-            "income",
-            "rich",
-            "poor",
-            "bank",
-            "loan",
-            "investment",
-            "invest",
-            "price",
-            "cost",
-            "business"
-        ],
-
-        SLEEP: [
-            "sleep",
-            "tired",
-            "sleeping",
-            "insomnia",
-            "dream",
-            "nap",
-            "awake"
-        ],
-
-        FOOD: [
-            "food",
-            "eat",
-            "eating",
-            "pizza",
-            "burger",
-            "rice",
-            "bread",
-            "chicken",
-            "vegetable",
-            "fruit",
-            "hungry",
-            "cook"
-        ],
-
-        ANIMALS: [
-            "cat",
-            "cats",
-            "dog",
-            "dogs",
-            "animal",
-            "animals",
-            "bird",
-            "fish",
-            "lion",
-            "tiger",
-            "elephant",
-            "pet"
-        ],
-
-        TECHNOLOGY: [
-            "phone",
-            "mobile",
-            "internet",
-            "wifi",
-            "technology",
-            "tech",
-            "computer",
-            "laptop",
-            "ai",
-            "robot",
-            "screen",
-            "app"
-        ],
-
-        SCHOOL: [
-            "school",
-            "college",
-            "study",
-            "student",
-            "exam",
-            "math",
-            "mathematics",
-            "homework",
-            "teacher",
-            "education",
-            "learn"
-        ],
-
-        WEATHER: [
-            "weather",
-            "rain",
-            "rainy",
-            "sun",
-            "sunny",
-            "cloud",
-            "cloudy",
-            "temperature",
-            "hot",
-            "cold",
-            "storm",
-            "wind"
-        ],
-
-        RELATIONSHIPS: [
-            "love",
-            "relationship",
-            "girlfriend",
-            "boyfriend",
-            "husband",
-            "wife",
-            "friend",
-            "friendship",
-            "marriage",
-            "breakup",
-            "crush"
-        ],
-
-        PHILOSOPHY: [
-            "life",
-            "meaning",
-            "exist",
-            "existence",
-            "universe",
-            "god",
-            "purpose",
-            "reality",
-            "consciousness"
-        ],
-
-        HEALTH: [
-            "health",
-            "body",
-            "exercise",
-            "weight",
-            "headache",
-            "fever",
-            "pain",
-            "healthy",
-            "medicine"
-        ],
-
-        HISTORY: [
-            "history",
-            "war",
-            "king",
-            "queen",
-            "ancient",
-            "empire",
-            "historical",
-            "country",
-            "civilization"
-        ]
-
+        quickPrompts: document.querySelectorAll(".quick-prompt")
     };
 
+    let processingCancelled = false;
+    let lastQuestion = "";
+    let lastResult = null;
 
-    for (const topic in topicKeywords) {
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
-        let score = 0;
+    function randomItem(list) {
+        if (!Array.isArray(list) || list.length === 0) {
+            return "";
+        }
 
-        for (const keyword of topicKeywords[topic]) {
+        return list[Math.floor(Math.random() * list.length)];
+    }
 
-            if (text.includes(keyword)) {
-                score++;
+    function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+    }
+
+    function normalize(text) {
+        return String(text || "")
+            .toLowerCase()
+            .replace(/[“”"']/g, "")
+            .replace(/[!?.,;:।]+$/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    // ============================================================
+    // LANGUAGE
+    // ============================================================
+
+    function languageOf(text) {
+        if (!text.trim()) {
+            return "English";
+        }
+
+        const hindiChars =
+            (text.match(/[\u0900-\u097F]/g) || []).length;
+
+        const latinChars =
+            (text.match(/[A-Za-z]/g) || []).length;
+
+        if (hindiChars > 0 && hindiChars >= latinChars * 0.15) {
+            return "Hindi";
+        }
+
+        return "English";
+    }
+
+    // ============================================================
+    // SPECIAL CASES
+    // ============================================================
+
+    function findSpecial(question, language) {
+        const key = normalize(question);
+
+        const source =
+            language === "Hindi"
+                ? brain.hindi?.special_cases
+                : brain.special_cases;
+
+        if (!source) {
+            return null;
+        }
+
+        if (source[key]) {
+            return randomItem(source[key]);
+        }
+
+        return null;
+    }
+
+    // ============================================================
+    // TOPIC DETECTION
+    // ============================================================
+
+    function detectTopic(question) {
+        const text = normalize(question);
+
+        let bestTopic = null;
+        let bestScore = 0;
+
+        for (const [topic, data] of Object.entries(brain.topics || {})) {
+            let score = 0;
+
+            for (const keyword of data.keywords || []) {
+                const k = normalize(keyword);
+
+                if (!k) {
+                    continue;
+                }
+
+                if (text === k) {
+                    score += 5;
+                } else if (text.includes(` ${k} `)) {
+                    score += 3;
+                } else if (text.includes(k)) {
+                    score += 2;
+                }
             }
 
+            if (score > bestScore) {
+                bestScore = score;
+                bestTopic = topic;
+            }
         }
 
-        if (score > bestScore) {
+        return bestTopic || "general";
+    }
 
-            bestScore = score;
-            bestTopic = topic;
+    // ============================================================
+    // QUESTION TYPE
+    // ============================================================
 
+    function detectQuestionType(question, language) {
+        const text = normalize(question);
+
+        if (language === "Hindi") {
+            if (
+                /^क्यों\b/.test(text) ||
+                text.includes(" क्यों ")
+            ) {
+                return "why";
+            }
+
+            if (
+                /^कैसे\b/.test(text) ||
+                text.includes(" कैसे ")
+            ) {
+                return "how";
+            }
+
+            if (
+                /^क्या\b/.test(text) ||
+                text.includes(" क्या ")
+            ) {
+                return "what";
+            }
+
+            if (
+                /^कब\b/.test(text) ||
+                text.includes(" कब ")
+            ) {
+                return "when";
+            }
+
+            if (
+                /^कहाँ\b/.test(text) ||
+                /^कहां\b/.test(text) ||
+                text.includes(" कहाँ ") ||
+                text.includes(" कहां ")
+            ) {
+                return "where";
+            }
+
+            if (
+                /^कौन\b/.test(text) ||
+                text.includes(" कौन ")
+            ) {
+                return "who";
+            }
+
+            if (
+                text.includes("चाहिए") ||
+                text.includes("मुझे करना चाहिए")
+            ) {
+                return "should";
+            }
+
+            if (
+                text.includes("क्या मैं") ||
+                text.includes("क्या हम") ||
+                text.includes("क्या तुम")
+            ) {
+                return "can";
+            }
+
+            return "general";
         }
-
-    }
-
-
-    return bestTopic;
-
-}
-
-
-/* =========================================================
-   QUESTION TYPE
-   ========================================================= */
-
-function detectQuestionType(question) {
-
-    const text = question.toLowerCase().trim();
-
-    if (/^why\b/.test(text)) {
-        return "WHY";
-    }
-
-    if (/^how\b/.test(text)) {
-        return "HOW";
-    }
-
-    if (/^what\b/.test(text)) {
-        return "WHAT";
-    }
-
-    if (/^when\b/.test(text)) {
-        return "WHEN";
-    }
-
-    if (/^where\b/.test(text)) {
-        return "WHERE";
-    }
-
-    if (/^who\b/.test(text)) {
-        return "WHO";
-    }
-
-    if (/^should\b/.test(text)) {
-        return "SHOULD";
-    }
-
-    if (/^can\b/.test(text)) {
-        return "CAN";
-    }
-
-    if (/^is\b/.test(text) || /^are\b/.test(text)) {
-        return "YES_NO";
-    }
-
-    return "GENERAL";
-
-}
-
-
-/* =========================================================
-   SPECIAL QUESTIONS
-   ========================================================= */
-
-function checkSpecialQuestion(question) {
-
-    const text = question.toLowerCase();
-
-    if (!Array.isArray(data.special)) {
-        return null;
-    }
-
-    for (const item of data.special) {
-
-        if (!item) {
-            continue;
-        }
-
-        const keywords = item.keywords || [];
 
         if (
-            keywords.length &&
-            keywords.every(keyword =>
-                text.includes(String(keyword).toLowerCase())
-            )
+            /^why\b/.test(text) ||
+            text.includes(" why ")
         ) {
-
-            return item.answer || null;
-
+            return "why";
         }
 
+        if (
+            /^how\b/.test(text) ||
+            text.includes(" how ")
+        ) {
+            return "how";
+        }
+
+        if (
+            /^what\b/.test(text) ||
+            text.includes(" what ")
+        ) {
+            return "what";
+        }
+
+        if (
+            /^when\b/.test(text) ||
+            text.includes(" when ")
+        ) {
+            return "when";
+        }
+
+        if (
+            /^where\b/.test(text) ||
+            text.includes(" where ")
+        ) {
+            return "where";
+        }
+
+        if (
+            /^who\b/.test(text) ||
+            text.includes(" who ")
+        ) {
+            return "who";
+        }
+
+        if (
+            /^should\b/.test(text) ||
+            text.includes(" should ")
+        ) {
+            return "should";
+        }
+
+        if (
+            /^can\b/.test(text) ||
+            text.includes(" can ")
+        ) {
+            return "can";
+        }
+
+        return "general";
     }
 
-    return null;
+    // ============================================================
+    // PERSONALITY
+    // ============================================================
 
-}
+    function choosePersonality(question) {
+        const text = normalize(question);
 
+        if (
+            /code|coding|programming|python|javascript|html|css|github|programmer|कोड|प्रोग्रामिंग|पाइथन/
+                .test(text)
+        ) {
+            if (Math.random() < 0.58) {
+                return brain.personalities.find(
+                    p => p.id === "genius"
+                );
+            }
+        }
 
-/* =========================================================
-   TOPIC ANSWER
-   ========================================================= */
+        if (
+            /love|relationship|girlfriend|boyfriend|marriage|dating|प्यार|रिश्ता|शादी/
+                .test(text)
+        ) {
+            if (Math.random() < 0.45) {
+                return brain.personalities.find(
+                    p => p.id === "sarcastic"
+                );
+            }
+        }
 
-function getTopicAnswer(topic, type) {
+        if (
+            /meaning|life|existence|universe|purpose|जीवन|अर्थ|ब्रह्मांड|जिंदगी/
+                .test(text)
+        ) {
+            if (Math.random() < 0.60) {
+                return brain.personalities.find(
+                    p => p.id === "existential"
+                );
+            }
+        }
 
-    const topicData = data.topics?.[topic];
-
-    if (!topicData) {
-        return null;
+        return randomItem(brain.personalities);
     }
 
-    if (
-        topicData[type] &&
-        Array.isArray(topicData[type])
-    ) {
+    // ============================================================
+    // MOOD SWINGS
+    // ============================================================
 
-        return randomItem(topicData[type]);
+    function chooseMood(personality, question) {
+        const moods = [...(brain.moods || [])];
+        const text = normalize(question);
 
+        if (
+            /why|क्यों|meaning|life|existence|जीवन|अर्थ/
+                .test(text)
+        ) {
+            const philosophical =
+                moods.find(m => m.id === "philosophical");
+
+            if (
+                philosophical &&
+                Math.random() < 0.48
+            ) {
+                return philosophical;
+            }
+        }
+
+        if (
+            /stupid|idiot|hate|बेवकूफ|नफरत/
+                .test(text)
+        ) {
+            const judgmental =
+                moods.find(m => m.id === "judgmental");
+
+            if (judgmental) {
+                return judgmental;
+            }
+        }
+
+        if (personality?.id === "chaos") {
+            const chaotic =
+                moods.find(m => m.id === "chaotic");
+
+            if (
+                chaotic &&
+                Math.random() < 0.7
+            ) {
+                return chaotic;
+            }
+        }
+
+        return randomItem(moods);
     }
 
-    if (
-        topicData.answers &&
-        Array.isArray(topicData.answers)
-    ) {
+    // ============================================================
+    // CORE ANSWER
+    // ============================================================
 
-        return randomItem(topicData.answers);
-
-    }
-
-    return null;
-
-}
-
-
-/* =========================================================
-   QUESTION TYPE ANSWER
-   ========================================================= */
-
-function getQuestionTypeAnswer(type) {
-
-    const answers = data.questionTypes?.[type];
-
-    if (
-        Array.isArray(answers) &&
-        answers.length
-    ) {
-
-        return randomItem(answers);
-
-    }
-
-    return null;
-
-}
-
-
-/* =========================================================
-   GENERATE ANSWER
-   ========================================================= */
-
-function generateAnswer(question) {
-
-    const topic = detectTopic(question);
-    const type = detectQuestionType(question);
-
-    const special = checkSpecialQuestion(question);
-
-    if (special) {
-
-        return {
-            answer: special,
-            topic: topic,
-            type: type
-        };
-
-    }
-
-
-    const topicAnswer = getTopicAnswer(
+    function selectCoreAnswer(
+        question,
+        language,
         topic,
         type
-    );
+    ) {
+        const special =
+            findSpecial(question, language);
 
-    const typeAnswer = getQuestionTypeAnswer(type);
-
-    const opening = randomItem(data.openings);
-    const ending = randomItem(data.endings);
-
-
-    let middle = topicAnswer;
-
-    if (!middle) {
-        middle = typeAnswer;
-    }
-
-    if (!middle) {
-        middle = randomItem(data.fallback);
-    }
-
-
-    let answer = "";
-
-    if (opening) {
-        answer += opening + " ";
-    }
-
-    answer += middle;
-
-    if (ending) {
-        answer += " " + ending;
-    }
-
-
-    return {
-        answer: answer,
-        topic: topic,
-        type: type
-    };
-
-}
-
-
-/* =========================================================
-   CONFIDENCE
-   ========================================================= */
-
-function getConfidence() {
-
-    return Number(
-        randomItem(data.confidence)
-    ) || 97;
-
-}
-
-
-/* =========================================================
-   CHARACTER COUNTER
-   ========================================================= */
-
-function updateCharacterCount() {
-
-    const length = questionInput.value.length;
-
-    characterCount.textContent =
-        `${length} / 500`;
-
-}
-
-
-/* =========================================================
-   SHOW / HIDE
-   ========================================================= */
-
-function show(element) {
-
-    element.classList.remove("hidden");
-
-}
-
-
-function hide(element) {
-
-    element.classList.add("hidden");
-
-}
-
-
-/* =========================================================
-   PROCESSING MESSAGE
-   ========================================================= */
-
-function getThinkingMessage() {
-
-    return randomItem(data.thinking)
-        || "Thinking very hard...";
-
-}
-
-
-/* =========================================================
-   PROCESSING ANIMATION
-   ========================================================= */
-
-function startProcessing(callback) {
-
-    if (isProcessing) {
-        return;
-    }
-
-    isProcessing = true;
-
-    hide(answerSection);
-    show(processingCard);
-
-    askButton.disabled = true;
-
-    const askText = askButton.querySelector(".ask-text");
-
-    if (askText) {
-        askText.textContent = "THINKING";
-    }
-
-
-    let progress = 0;
-
-    processingPercent.textContent = "0%";
-    progressBar.style.width = "0%";
-
-    processingMessage.textContent =
-        getThinkingMessage();
-
-
-    clearInterval(processingTimer);
-
-
-    processingTimer = setInterval(() => {
-
-        const increment =
-            Math.floor(Math.random() * 12) + 5;
-
-        progress += increment;
-
-
-        if (progress >= 100) {
-            progress = 100;
+        if (special) {
+            return {
+                text: special,
+                answerType: "SPECIAL",
+                topic: "SPECIAL",
+                special: true
+            };
         }
 
+        if (language === "Hindi") {
+            const topicAnswers =
+                brain.hindi?.topics?.[topic];
 
-        processingPercent.textContent =
-            `${progress}%`;
+            if (topicAnswers?.length) {
+                return {
+                    text: randomItem(topicAnswers),
+                    answerType: "TOPIC",
+                    topic,
+                    special: false
+                };
+            }
 
-        progressBar.style.width =
-            `${progress}%`;
+            const patternAnswers =
+                brain.hindi?.question_patterns?.[type];
 
+            if (patternAnswers?.length) {
+                return {
+                    text: randomItem(patternAnswers),
+                    answerType: type.toUpperCase(),
+                    topic: "GENERAL",
+                    special: false
+                };
+            }
 
-        if (progress > 25 && progress < 55) {
-
-            processingMessage.textContent =
-                getThinkingMessage();
-
+            return {
+                text: randomItem(
+                    brain.hindi?.fallbacks ||
+                    brain.fallbacks
+                ),
+                answerType: "GENERAL",
+                topic: "GENERAL",
+                special: false
+            };
         }
 
-        if (progress >= 55 && progress < 85) {
+        const topicAnswers =
+            brain.topics?.[topic]?.answers;
 
-            processingMessage.textContent =
-                "Cross-referencing absolutely nothing...";
-
+        if (topicAnswers?.length) {
+            return {
+                text: randomItem(topicAnswers),
+                answerType: "TOPIC",
+                topic,
+                special: false
+            };
         }
 
-        if (progress >= 85 && progress < 100) {
+        const patternAnswers =
+            brain.question_patterns?.[type];
 
-            processingMessage.textContent =
-                "Constructing confidence...";
-
+        if (patternAnswers?.length) {
+            return {
+                text: randomItem(patternAnswers),
+                answerType: type.toUpperCase(),
+                topic: "GENERAL",
+                special: false
+            };
         }
 
-
-        if (progress >= 100) {
-
-            clearInterval(processingTimer);
-
-            setTimeout(() => {
-
-                finishProcessing(callback);
-
-            }, 250);
-
-        }
-
-    }, 180);
-
-}
-
-
-/* =========================================================
-   FINISH PROCESSING
-   ========================================================= */
-
-function finishProcessing(callback) {
-
-    isProcessing = false;
-
-    hide(processingCard);
-
-    askButton.disabled = false;
-
-    const askText = askButton.querySelector(".ask-text");
-
-    if (askText) {
-        askText.textContent = "ASK";
+        return {
+            text: randomItem(brain.fallbacks),
+            answerType: "GENERAL",
+            topic: "GENERAL",
+            special: false
+        };
     }
 
-    callback();
+    // ============================================================
+    // ANSWER DECORATION
+    // ============================================================
 
-}
+    function decorateAnswer(
+        core,
+        personality,
+        mood,
+        language
+    ) {
+        if (core.special) {
+            return core.text;
+        }
 
+        let personalityIntro =
+            randomItem(personality?.intros || []);
 
-/* =========================================================
-   RENDER ANSWER
-   ========================================================= */
+        let moodPrefix =
+            mood?.prefix || "";
 
-function renderAnswer(result) {
-
-    answerContent.textContent =
-        result.answer;
-
-    topicElement.textContent =
-        result.topic;
-
-    answerTypeElement.textContent =
-        result.type;
-
-
-    const confidence =
-        getConfidence();
-
-    confidenceElement.textContent =
-        `CONFIDENCE: ${confidence}%`;
-
-
-    show(answerSection);
-
-
-    setTimeout(() => {
-
-        answerSection.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
-
-    }, 50);
-
-}
-
-
-/* =========================================================
-   ASK QUESTION
-   ========================================================= */
-
-function askQuestion() {
-
-    if (isProcessing) {
-        return;
-    }
-
-
-    const question =
-        cleanQuestion(questionInput.value);
-
-
-    if (!question) {
-
-        questionInput.focus();
-
-        questionInput.classList.add(
-            "input-error"
-        );
-
-
-        setTimeout(() => {
-
-            questionInput.classList.remove(
-                "input-error"
+        const emoji =
+            randomItem(
+                brain.emoji_sets?.[
+                    personality?.style
+                ] ||
+                brain.emoji_sets?.confident ||
+                ["🤖"]
             );
 
-        }, 500);
+        if (language === "Hindi") {
+            const hindiIntros = {
+                professor:
+                    "चलिए इसे थोड़ी अनावश्यक अकादमिक गंभीरता से देखते हैं।",
 
-        return;
+                genius:
+                    "जाहिर है, इसका जवाब मुझे पहले से पता है।",
+
+                chaos:
+                    "ओह! बढ़िया। अब यह मज़ेदार होने वाला है।",
+
+                tired:
+                    "ठीक है। इसे भी निपटा देते हैं।",
+
+                corporate:
+                    "आपके प्रश्न को रणनीतिक अवसर में सफलतापूर्वक बदल दिया गया है।",
+
+                suspicious:
+                    "हम्म। आपके सवाल में कुछ संदिग्ध है।",
+
+                existential:
+                    "आह। फिर एक सवाल जो छोटी-सी मानव जिंदगी ने ब्रह्मांड के सामने रख दिया।",
+
+                sarcastic:
+                    "बिल्कुल। चलिए इसे ऐसे समझाते हैं जैसे यह बहुत सामान्य सवाल हो।",
+
+                zen:
+                    "शांत रहें। जवाब आने दीजिए। शायद।",
+
+                dark:
+                    "बहुत अच्छा। इसमें थोड़ी अंधेरी हास्य-ऊर्जा जोड़ते हैं।"
+            };
+
+            personalityIntro =
+                hindiIntros[
+                    personality?.id
+                ] ||
+                personalityIntro;
+
+            if (mood?.prefix) {
+                moodPrefix =
+                    `मूड अपडेट: ${mood.prefix}`;
+            }
+        }
+
+        const opening =
+            randomItem(brain.openings);
+
+        const thinking =
+            randomItem(brain.thinking);
+
+        const ending =
+            randomItem(
+                personality?.closings ||
+                brain.endings
+            );
+
+        const parts = [
+            `${emoji} ${
+                personalityIntro ||
+                opening
+            }`,
+
+            moodPrefix
+                ? `\n\n${moodPrefix}`
+                : "",
+
+            `\n\n${core.text}`,
+
+            `\n\n${thinking}`,
+
+            `\n\n${ending}`
+        ];
+
+        return parts
+            .filter(Boolean)
+            .join("");
     }
 
+    // ============================================================
+    // BUILD COMPLETE RESULT
+    // ============================================================
 
-    const result =
-        generateAnswer(question);
+    function buildResult(question) {
+        const language =
+            languageOf(question);
 
+        const topic =
+            detectTopic(question);
 
-    startProcessing(() => {
+        const type =
+            detectQuestionType(
+                question,
+                language
+            );
 
-        renderAnswer(result);
+        const personality =
+            choosePersonality(question);
 
-    });
+        const mood =
+            chooseMood(
+                personality,
+                question
+            );
 
-}
+        const core =
+            selectCoreAnswer(
+                question,
+                language,
+                topic,
+                type
+            );
 
+        const answer =
+            decorateAnswer(
+                core,
+                personality,
+                mood,
+                language
+            );
 
-/* =========================================================
-   RESET EVERYTHING
-   ========================================================= */
+        return {
+            answer,
 
-function resetApplication() {
+            innerThought:
+                randomItem(
+                    personality?.thoughts ||
+                    [
+                        "🧠 *I am thinking extremely hard. Probably.*"
+                    ]
+                ),
 
-    /*
-       Cancel any active processing animation.
-    */
+            personality,
 
-    clearInterval(processingTimer);
+            mood,
 
-    processingTimer = null;
+            confidence:
+                randomItem(
+                    brain.confidence
+                ),
 
-    isProcessing = false;
+            topic:
+                core.topic === "GENERAL"
+                    ? "GENERAL"
+                    : core.topic,
 
+            answerType:
+                core.answerType,
 
-    /*
-       Reset input.
-    */
+            language,
 
-    questionInput.value = "";
-
-    updateCharacterCount();
-
-
-    /*
-       Reset answer.
-    */
-
-    answerContent.textContent = "";
-
-    topicElement.textContent =
-        "GENERAL";
-
-    answerTypeElement.textContent =
-        "ANALYSIS";
-
-    confidenceElement.textContent =
-        "CONFIDENCE: 99%";
-
-
-    /*
-       Reset processing UI.
-    */
-
-    processingPercent.textContent =
-        "0%";
-
-    progressBar.style.width =
-        "0%";
-
-    processingMessage.textContent =
-        "Thinking very hard...";
-
-
-    /*
-       Hide answer and processing.
-    */
-
-    hide(answerSection);
-
-    hide(processingCard);
-
-
-    /*
-       Reset ASK button.
-    */
-
-    askButton.disabled = false;
-
-    const askText =
-        askButton.querySelector(".ask-text");
-
-    if (askText) {
-        askText.textContent = "ASK";
+            emoji:
+                personality?.emoji ||
+                "🤖"
+        };
     }
 
+    // ============================================================
+    // PROCESSING UI
+    // ============================================================
 
-    /*
-       Remove temporary states.
-    */
+    function setProgress(
+        value,
+        message
+    ) {
+        const safe =
+            clamp(
+                value,
+                0,
+                100
+            );
 
-    questionInput.classList.remove(
-        "input-error"
-    );
+        if (el.processingPercent) {
+            el.processingPercent.textContent =
+                `${Math.round(safe)}%`;
+        }
 
+        if (el.progressBar) {
+            el.progressBar.style.width =
+                `${safe}%`;
+        }
 
-    /*
-       Return to the top without reloading.
-    */
+        if (el.processingMessage) {
+            el.processingMessage.textContent =
+                message;
+        }
+    }
 
-    window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
+    async function fakeProcessing(language) {
+        const messages =
+            language === "Hindi"
+                ? [
+                    "सवाल पढ़ रहा हूँ... 👀",
+                    "काल्पनिक डेटाबेस चेक हो रहा है... 🗄️",
+                    "व्यक्तित्व चुना जा रहा है... 🎭",
+                    "मूड अचानक बदल रहा है... 🌪️",
+                    "आंतरिक विचारों की जाँच... 🧠",
+                    "जवाब को अनावश्यक आत्मविश्वास दिया जा रहा है... 😎",
+                    "लगभग तैयार... शायद।"
+                ]
+                : [
+                    "Reading the question... 👀",
+                    "Checking imaginary databases... 🗄️",
+                    "Selecting a personality... 🎭",
+                    "Mood swing detected... 🌪️",
+                    "Inspecting internal thoughts... 🧠",
+                    "Adding unnecessary confidence... 😎",
+                    "Almost ready... probably."
+                ];
 
+        el.processingCard
+            ?.classList
+            .remove("hidden");
 
-    /*
-       Put cursor back in the question box.
-    */
+        el.answerSection
+            ?.classList
+            .add("hidden");
 
-    setTimeout(() => {
+        processingCancelled = false;
 
-        questionInput.focus();
+        for (
+            let i = 0;
+            i < messages.length;
+            i++
+        ) {
+            if (processingCancelled) {
+                return false;
+            }
 
-    }, 350);
+            setProgress(
+                Math.round(
+                    ((i + 1) /
+                        messages.length) *
+                    100
+                ),
+                messages[i]
+            );
 
-}
+            await sleep(
+                280 +
+                Math.random() * 240
+            );
+        }
 
+        return !processingCancelled;
+    }
 
-/* =========================================================
-   LOGO RESET
-   ========================================================= */
+    // ============================================================
+    // RENDER
+    // ============================================================
 
-if (logoButton) {
+    function formatAnswer(text) {
+        return String(text || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\n\n/g, "<br><br>")
+            .replace(/\n/g, "<br>");
+    }
 
-    logoButton.addEventListener(
-        "click",
-        resetApplication
-    );
+    function renderResult(result) {
+        if (!result) {
+            return;
+        }
 
-}
+        el.answerContent.innerHTML =
+            formatAnswer(result.answer);
 
+        el.innerThought.textContent =
+            result.innerThought;
 
-/* =========================================================
-   CHARACTER COUNTER EVENT
-   ========================================================= */
+        el.personality.textContent =
+            `${result.personality.emoji} ${result.personality.name}`;
 
-questionInput.addEventListener(
-    "input",
-    updateCharacterCount
-);
+        el.mood.textContent =
+            `${result.mood.emoji} ${result.mood.name}`;
 
+        el.confidence.textContent =
+            result.confidence;
 
-/* =========================================================
-   ASK BUTTON EVENT
-   ========================================================= */
+        el.topic.textContent =
+            result.topic;
 
-askButton.addEventListener(
-    "click",
-    askQuestion
-);
+        el.answerType.textContent =
+            result.answerType;
 
+        el.language.textContent =
+            result.language;
 
-/* =========================================================
-   ASK ANOTHER EVENT
-   ========================================================= */
+        el.answerEmoji.textContent =
+            result.emoji;
 
-anotherButton.addEventListener(
-    "click",
-    () => {
+        el.answerSection
+            .classList
+            .remove("hidden");
 
-        hide(answerSection);
+        requestAnimationFrame(() => {
+            el.answerSection.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+        });
+    }
+
+    // ============================================================
+    // ASK
+    // ============================================================
+
+    async function askQuestion(
+        questionOverride = null
+    ) {
+        const question =
+            String(
+                questionOverride !== null
+                    ? questionOverride
+                    : el.question.value
+            ).trim();
+
+        if (!question) {
+            el.question.focus();
+
+            el.question.classList.add(
+                "shake"
+            );
+
+            setTimeout(() => {
+                el.question.classList.remove(
+                    "shake"
+                );
+            }, 450);
+
+            return;
+        }
+
+        lastQuestion = question;
+        lastResult = null;
+
+        el.askButton.disabled = true;
+        el.anotherButton.disabled = true;
+        el.question.disabled = true;
+
+        el.answerSection
+            .classList
+            .add("hidden");
+
+        const language =
+            languageOf(question);
+
+        const completed =
+            await fakeProcessing(
+                language
+            );
+
+        if (!completed) {
+            return;
+        }
+
+        lastResult =
+            buildResult(question);
+
+        el.processingCard
+            .classList
+            .add("hidden");
+
+        renderResult(lastResult);
+
+        el.askButton.disabled = false;
+        el.anotherButton.disabled = false;
+        el.question.disabled = false;
+    }
+
+    // ============================================================
+    // ANOTHER ANSWER
+    // ============================================================
+
+    function anotherAnswer() {
+        if (!lastQuestion) {
+            el.question.focus();
+            return;
+        }
+
+        const result =
+            buildResult(
+                lastQuestion
+            );
+
+        lastResult = result;
+
+        renderResult(result);
+    }
+
+    // ============================================================
+    // RESET
+    // ============================================================
+
+    function resetApplication() {
+        processingCancelled = true;
+
+        lastQuestion = "";
+        lastResult = null;
+
+        el.question.disabled = false;
+        el.question.value = "";
+
+        updateCharacterCount();
+
+        el.processingCard
+            .classList
+            .add("hidden");
+
+        el.answerSection
+            .classList
+            .add("hidden");
+
+        setProgress(
+            0,
+            "Waiting for a questionable question..."
+        );
+
+        el.askButton.disabled = false;
+        el.anotherButton.disabled = false;
 
         window.scrollTo({
             top: 0,
@@ -1032,87 +917,90 @@ anotherButton.addEventListener(
         });
 
         setTimeout(() => {
-
-            questionInput.focus();
-
+            el.question.focus();
         }, 350);
-
     }
-);
 
+    // ============================================================
+    // CHARACTER COUNT
+    // ============================================================
 
-/* =========================================================
-   QUICK PROMPTS
-   ========================================================= */
+    function updateCharacterCount() {
+        const count =
+            el.question.value.length;
 
-quickPrompts.forEach(button => {
+        if (el.characterCount) {
+            el.characterCount.textContent =
+                `${count} characters`;
+        }
+    }
 
-    button.addEventListener(
+    // ============================================================
+    // EVENTS
+    // ============================================================
+
+    el.logoButton?.addEventListener(
         "click",
-        () => {
+        resetApplication
+    );
 
-            const question =
-                button.dataset.question || "";
+    el.askButton?.addEventListener(
+        "click",
+        () => askQuestion()
+    );
 
-            questionInput.value =
-                question;
+    el.anotherButton?.addEventListener(
+        "click",
+        anotherAnswer
+    );
 
-            updateCharacterCount();
+    el.question?.addEventListener(
+        "input",
+        updateCharacterCount
+    );
 
-            questionInput.focus();
-
-            /*
-               Move cursor to the end.
-            */
-
-            questionInput.setSelectionRange(
-                question.length,
-                question.length
-            );
-
+    el.question?.addEventListener(
+        "keydown",
+        event => {
+            if (
+                (event.ctrlKey ||
+                    event.metaKey) &&
+                event.key === "Enter"
+            ) {
+                event.preventDefault();
+                askQuestion();
+            }
         }
     );
 
-});
+    el.quickPrompts.forEach(
+        button => {
+            button.addEventListener(
+                "click",
+                () => {
+                    const prompt =
+                        button.dataset.prompt ||
+                        button.textContent.trim();
 
+                    el.question.value =
+                        prompt;
 
-/* =========================================================
-   ENTER KEY
-   ========================================================= */
+                    updateCharacterCount();
 
-questionInput.addEventListener(
-    "keydown",
-    event => {
-
-        /*
-           Enter = Ask
-           Shift + Enter = New line
-        */
-
-        if (
-            event.key === "Enter" &&
-            !event.shiftKey
-        ) {
-
-            event.preventDefault();
-
-            askQuestion();
-
+                    askQuestion(prompt);
+                }
+            );
         }
+    );
 
-    }
-);
+    // ============================================================
+    // INITIAL STATE
+    // ============================================================
 
+    updateCharacterCount();
 
-/* =========================================================
-   INITIAL STATE
-   ========================================================= */
-
-updateCharacterCount();
-
-hide(answerSection);
-hide(processingCard);
-
-console.log(
-    "ANSWER MACHINE initialized."
-);
+    setProgress(
+        0,
+        "Waiting for a questionable question..."
+    );
+})();
