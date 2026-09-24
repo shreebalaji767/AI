@@ -1,228 +1,336 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta name="theme-color" content="#0b0d12">
     <meta
-        name="description"
-        content="Ask anything. Get an answer. Probably."
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     >
 
-    <title>ANSWER MACHINE</title>
+    <meta
+        name="theme-color"
+        content="#08090d"
+    >
 
-    <link rel="stylesheet" href="style.css">
+    <meta
+        name="description"
+        content="ANSWER MACHINE — ridiculous answers, unstable personalities, mood swings and unnecessary confidence."
+    >
+
+    <title>ANSWER MACHINE — Ask Anything</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
 </head>
 
 <body>
 
-    <div class="page">
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
 
-        <!-- =========================
-             HEADER
-        ========================== -->
-        <header class="topbar">
+    <!-- ======================================================
+         HEADER
+         ====================================================== -->
+
+    <header class="site-header">
+
+        <div class="header-inner">
 
             <button
-                class="logo"
+                class="logo-button"
                 id="logoButton"
                 type="button"
-                aria-label="Reset and return to home"
+                aria-label="Reset Answer Machine"
             >
-                <span class="logo-main">ANSWER</span>
-                <span class="logo-accent">MACHINE</span>
+
+                <span class="logo-mark">
+                    A
+                </span>
+
+                <span class="logo-text">
+
+                    <strong>
+                        ANSWER
+                    </strong>
+
+                    <span>
+                        MACHINE
+                    </span>
+
+                </span>
+
             </button>
 
-            <div class="status">
+            <div class="header-status">
+
                 <span class="status-dot"></span>
-                <span>ONLINE</span>
+
+                <span>
+                    QUESTIONABLE INTELLIGENCE ONLINE
+                </span>
+
             </div>
 
-        </header>
+        </div>
+
+    </header>
 
 
-        <!-- =========================
+    <main>
+
+        <!-- ==================================================
              HERO
-        ========================== -->
-        <main>
+             ================================================== -->
 
-            <section class="hero">
+        <section class="hero">
 
-                <div class="hero-badge">
-                    <span>✦</span>
-                    ARTIFICIAL ANSWERING SYSTEM
+            <div class="hero-inner">
+
+                <div class="eyebrow">
+
+                    <span>
+                        🤖
+                    </span>
+
+                    <span>
+                        100% UNNECESSARY ANALYSIS
+                    </span>
+
                 </div>
 
+
                 <h1>
-                    Ask anything.
-                    <span>Seriously.</span>
+                    Ask anything.<br>
+                    <span>
+                        Regret everything.
+                    </span>
                 </h1>
 
-                <p class="hero-text">
-                    Type a question. Receive an answer.
-                    The answer may or may not improve your life.
+
+                <p class="hero-copy">
+
+                    Type a question in English or Hindi.
+                    The machine will select a personality,
+                    develop a mood, think some questionable
+                    thoughts, and produce an answer with
+                    absolutely unnecessary confidence.
+
                 </p>
 
-            </section>
 
-
-            <!-- =========================
-                 QUESTION CARD
-            ========================== -->
-            <section class="question-section">
+                <!-- QUESTION CARD -->
 
                 <div class="question-card">
 
-                    <div class="card-top">
+                    <div class="question-card-top">
 
-                        <div class="input-label">
-                            <span class="label-number">01</span>
+                        <label for="question">
                             YOUR QUESTION
-                        </div>
+                        </label>
 
-                        <div
-                            class="character-count"
-                            id="characterCount"
-                        >
-                            0 / 500
-                        </div>
+                        <span id="characterCount">
+                            0 characters
+                        </span>
 
                     </div>
 
 
                     <textarea
                         id="question"
-                        maxlength="500"
+                        rows="4"
+                        maxlength="1000"
                         autocomplete="off"
                         spellcheck="true"
-                        placeholder="Why do cats stare at walls?"
+                        placeholder="Ask something ridiculous... / कुछ भी पूछिए..."
                         aria-label="Your question"
                     ></textarea>
 
 
-                    <div class="quick-area">
+                    <div class="question-actions">
 
-                        <span class="quick-label">
-                            TRY ONE
+                        <span class="shortcut">
+                            CTRL / CMD + ENTER
                         </span>
 
-                        <div class="quick-prompts">
+                        <button
+                            class="ask-button"
+                            id="askButton"
+                            type="button"
+                        >
 
-                            <button
-                                type="button"
-                                class="quick-prompt"
-                                data-question="Why is the sky blue?"
-                            >
-                                Why is the sky blue?
-                            </button>
+                            <span>
+                                ASK THE MACHINE
+                            </span>
 
-                            <button
-                                type="button"
-                                class="quick-prompt"
-                                data-question="How do computers actually work?"
-                            >
-                                How do computers work?
-                            </button>
+                            <span class="button-arrow">
+                                →
+                            </span>
 
-                            <button
-                                type="button"
-                                class="quick-prompt"
-                                data-question="Should I sleep more?"
-                            >
-                                Should I sleep more?
-                            </button>
-
-                            <button
-                                type="button"
-                                class="quick-prompt"
-                                data-question="Why do cats act weird?"
-                            >
-                                Why are cats weird?
-                            </button>
-
-                        </div>
+                        </button>
 
                     </div>
 
+                </div>
 
-                    <button
-                        type="button"
-                        class="ask-button"
-                        id="askButton"
-                    >
-                        <span class="ask-text">ASK</span>
-                        <span class="ask-arrow">→</span>
-                    </button>
+
+                <!-- QUICK PROMPTS -->
+
+                <div class="quick-section">
+
+                    <div class="quick-label">
+                        TRY ONE OF THESE
+                    </div>
+
+
+                    <div class="quick-grid">
+
+                        <button
+                            class="quick-prompt"
+                            type="button"
+                            data-prompt="Why is my computer so slow?"
+                        >
+                            💻 Why is my computer so slow?
+                        </button>
+
+
+                        <button
+                            class="quick-prompt"
+                            type="button"
+                            data-prompt="What is the meaning of life?"
+                        >
+                            🌌 What is the meaning of life?
+                        </button>
+
+
+                        <button
+                            class="quick-prompt"
+                            type="button"
+                            data-prompt="मैं इतना थका हुआ क्यों हूँ?"
+                        >
+                            😴 मैं इतना थका हुआ क्यों हूँ?
+                        </button>
+
+
+                        <button
+                            class="quick-prompt"
+                            type="button"
+                            data-prompt="क्या मुझे अमीर बनने के लिए नौकरी छोड़ देनी चाहिए?"
+                        >
+                            💰 क्या मुझे अमीर बनने के लिए नौकरी छोड़ देनी चाहिए?
+                        </button>
+
+                    </div>
 
                 </div>
 
-            </section>
+            </div>
+
+        </section>
 
 
-            <!-- =========================
-                 PROCESSING
-            ========================== -->
-            <section
-                class="processing-card hidden"
-                id="processingCard"
-                aria-live="polite"
-            >
+        <!-- ==================================================
+             PROCESSING
+             ================================================== -->
 
-                <div class="processing-header">
-                    <span class="processing-label">
-                        PROCESSING
-                    </span>
+        <section
+            class="processing-card hidden"
+            id="processingCard"
+            aria-live="polite"
+        >
 
-                    <span
-                        class="processing-percent"
-                        id="processingPercent"
-                    >
-                        0%
-                    </span>
+            <div class="processing-head">
+
+                <div>
+
+                    <div class="section-kicker">
+                        MACHINE THINKING
+                    </div>
+
+                    <h2>
+                        Making this unnecessarily complicated.
+                    </h2>
+
                 </div>
 
-                <div class="progress-track">
-                    <div
-                        class="progress-bar"
-                        id="progressBar"
-                    ></div>
-                </div>
+                <strong id="processingPercent">
+                    0%
+                </strong>
+
+            </div>
+
+
+            <div class="progress-track">
 
                 <div
-                    class="processing-message"
-                    id="processingMessage"
-                >
-                    Thinking very hard...
+                    class="progress-bar"
+                    id="progressBar"
+                ></div>
+
+            </div>
+
+
+            <p id="processingMessage">
+                Waiting for a questionable question...
+            </p>
+
+        </section>
+
+
+        <!-- ==================================================
+             ANSWER
+             ================================================== -->
+
+        <section
+            class="answer-section hidden"
+            id="answerSection"
+            aria-live="polite"
+        >
+
+            <div class="answer-head">
+
+                <div>
+
+                    <div class="section-kicker">
+                        THE MACHINE HAS SPOKEN
+                    </div>
+
+                    <h2>
+                        Your completely unnecessary answer
+                    </h2>
+
                 </div>
 
-            </section>
+
+                <div
+                    class="answer-emoji"
+                    id="answerEmoji"
+                >
+                    🤖
+                </div>
+
+            </div>
 
 
-            <!-- =========================
-                 ANSWER
-            ========================== -->
-            <section
-                class="answer-section hidden"
-                id="answerSection"
-                aria-live="polite"
-            >
+            <div class="answer-grid">
 
-                <div class="answer-card">
 
-                    <div class="answer-top">
+                <!-- FINAL ANSWER -->
 
-                        <div class="answer-label">
-                            <span class="label-number">02</span>
-                            ANSWER
-                        </div>
+                <article class="answer-card">
 
-                        <div
-                            class="confidence"
-                            id="confidence"
-                        >
-                            CONFIDENCE: 99%
-                        </div>
+                    <div class="answer-label">
+
+                        <span>
+                            FINAL ANSWER
+                        </span>
+
+                        <span class="live-pill">
+                            LIVE
+                        </span>
 
                     </div>
 
@@ -233,136 +341,295 @@
                     ></div>
 
 
-                    <div class="answer-meta">
+                    <button
+                        class="another-button"
+                        id="anotherButton"
+                        type="button"
+                    >
+                        🎲 Give me another answer
+                    </button>
 
-                        <div class="meta-item">
-                            <span class="meta-label">
-                                DETECTED TOPIC
+                </article>
+
+
+                <!-- INTERNAL DIAGNOSTICS -->
+
+                <aside class="analysis-card">
+
+                    <div class="analysis-title">
+                        INTERNAL DIAGNOSTICS
+                    </div>
+
+
+                    <div class="thought-box">
+
+                        <span class="mini-label">
+                            INNER THOUGHT
+                        </span>
+
+                        <p id="innerThought"></p>
+
+                    </div>
+
+
+                    <div class="diagnostic-list">
+
+
+                        <div class="diagnostic">
+
+                            <span>
+                                PERSONALITY
                             </span>
 
-                            <span
-                                class="meta-value"
-                                id="topic"
-                            >
-                                GENERAL
-                            </span>
+                            <strong id="personality">
+                                —
+                            </strong>
+
                         </div>
 
-                        <div class="meta-item">
-                            <span class="meta-label">
+
+                        <div class="diagnostic">
+
+                            <span>
+                                MOOD
+                            </span>
+
+                            <strong id="mood">
+                                —
+                            </strong>
+
+                        </div>
+
+
+                        <div class="diagnostic">
+
+                            <span>
+                                LANGUAGE
+                            </span>
+
+                            <strong id="language">
+                                —
+                            </strong>
+
+                        </div>
+
+
+                        <div class="diagnostic">
+
+                            <span>
+                                TOPIC
+                            </span>
+
+                            <strong id="topic">
+                                —
+                            </strong>
+
+                        </div>
+
+
+                        <div class="diagnostic">
+
+                            <span>
                                 ANSWER TYPE
                             </span>
 
-                            <span
-                                class="meta-value"
-                                id="answerType"
-                            >
-                                ANALYSIS
+                            <strong id="answerType">
+                                —
+                            </strong>
+
+                        </div>
+
+
+                        <div class="diagnostic confidence-row">
+
+                            <span>
+                                CONFIDENCE
                             </span>
+
+                            <strong id="confidence">
+                                —
+                            </strong>
+
                         </div>
 
                     </div>
 
+                </aside>
 
-                    <button
-                        type="button"
-                        class="another-button"
-                        id="anotherButton"
-                    >
-                        ASK ANOTHER
-                        <span>↗</span>
-                    </button>
+            </div>
 
+        </section>
+
+
+        <!-- ==================================================
+             FEATURES
+             ================================================== -->
+
+        <section class="features">
+
+            <div class="feature-intro">
+
+                <div class="section-kicker">
+                    ENGINE CAPABILITIES
                 </div>
 
-            </section>
+                <h2>
+                    It takes your question<br>
+                    far too seriously.
+                </h2>
+
+            </div>
 
 
-            <!-- =========================
-                 FEATURES
-            ========================== -->
-            <section class="features">
-
-                <div class="feature">
-
-                    <div class="feature-icon">
-                        ⚡
-                    </div>
-
-                    <div>
-                        <h3>FAST</h3>
-                        <p>
-                            Answers generated directly in your browser.
-                        </p>
-                    </div>
-
-                </div>
+            <div class="feature-grid">
 
 
-                <div class="feature">
+                <article class="feature">
 
-                    <div class="feature-icon">
-                        ◈
-                    </div>
+                    <span>
+                        🎭
+                    </span>
 
-                    <div>
-                        <h3>PRIVATE</h3>
-                        <p>
-                            Your question stays in this browser session.
-                        </p>
-                    </div>
+                    <h3>
+                        Multiple Personalities
+                    </h3>
 
-                </div>
+                    <p>
+                        Professor, genius, chaos goblin,
+                        corporate robot, existentialist and more.
+                    </p>
 
-
-                <div class="feature">
-
-                    <div class="feature-icon">
-                        ∞
-                    </div>
-
-                    <div>
-                        <h3>LIMITLESS</h3>
-                        <p>
-                            Ask as many ridiculous questions as you want.
-                        </p>
-                    </div>
-
-                </div>
-
-            </section>
-
-        </main>
+                </article>
 
 
-        <!-- =========================
-             FOOTER
-        ========================== -->
-        <footer class="footer">
+                <article class="feature">
 
-            <div class="footer-left">
+                    <span>
+                        🌪️
+                    </span>
+
+                    <h3>
+                        Mood Swings
+                    </h3>
+
+                    <p>
+                        The machine's emotional stability
+                        is entirely optional.
+                    </p>
+
+                </article>
+
+
+                <article class="feature">
+
+                    <span>
+                        🧠
+                    </span>
+
+                    <h3>
+                        Inner Thoughts
+                    </h3>
+
+                    <p>
+                        See the completely unnecessary
+                        internal monologue behind the answer.
+                    </p>
+
+                </article>
+
+
+                <article class="feature">
+
+                    <span>
+                        🇮🇳
+                    </span>
+
+                    <h3>
+                        English + Hindi
+                    </h3>
+
+                    <p>
+                        Ask in Hindi and receive Hindi answers,
+                        including Devanagari-aware matching.
+                    </p>
+
+                </article>
+
+
+                <article class="feature">
+
+                    <span>
+                        😏
+                    </span>
+
+                    <h3>
+                        Sarcasm Engine
+                    </h3>
+
+                    <p>
+                        Because a normal answer would be
+                        far too responsible.
+                    </p>
+
+                </article>
+
+
+                <article class="feature">
+
+                    <span>
+                        💀
+                    </span>
+
+                    <h3>
+                        Dark Humor
+                    </h3>
+
+                    <p>
+                        Absurd, fictional dark comedy without
+                        turning the machine into a disaster.
+                    </p>
+
+                </article>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ======================================================
+         FOOTER
+         ====================================================== -->
+
+    <footer class="site-footer">
+
+        <div>
+
+            <strong>
                 ANSWER MACHINE
-            </div>
+            </strong>
 
-            <div class="footer-center">
-                NO LOGIN · NO DATABASE · NO DRAMA
-            </div>
+            <span>
+                Built with questionable logic and excessive confidence.
+            </span>
 
-            <div class="footer-right">
-                <span class="footer-dot"></span>
-                RUNNING LOCALLY
-            </div>
+        </div>
 
-        </footer>
+        <span>
+            STATIC • NO LOGIN • NO DATABASE • NO API
+        </span>
 
-    </div>
+    </footer>
 
 
-    <!-- Generated answer data -->
+    <!-- ======================================================
+         JAVASCRIPT
+         ====================================================== -->
+
     <script src="data/brain.js"></script>
-
-    <!-- Main application -->
     <script src="app.js"></script>
 
 </body>
+
 </html>
