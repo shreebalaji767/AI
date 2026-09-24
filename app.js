@@ -1,1006 +1,979 @@
-(() => {
-    "use strict";
+"use strict";
 
-    const brain = window.BRAIN;
 
-    if (!brain) {
-        console.error("ANSWER MACHINE: brain.js was not loaded.");
-        return;
+/* =========================================================
+   ANSWER MACHINE
+   Browser-side static answer engine
+========================================================= */
+
+const brain = window.BRAIN || {};
+
+const elements = {
+    landingPage: document.getElementById("landingPage"),
+    logoButton: document.getElementById("logoButton"),
+
+    question: document.getElementById("question"),
+    characterCount: document.getElementById("characterCount"),
+    askButton: document.getElementById("askButton"),
+
+    processingCard: document.getElementById("processingCard"),
+    processingPercent: document.getElementById("processingPercent"),
+    processingMessage: document.getElementById("processingMessage"),
+    progressBar: document.getElementById("progressBar"),
+
+    answerSection: document.getElementById("answerSection"),
+    answerContent: document.getElementById("answerContent"),
+    innerThought: document.getElementById("innerThought"),
+
+    confidence: document.getElementById("confidence"),
+    topic: document.getElementById("topic"),
+    answerType: document.getElementById("answerType"),
+
+    languageBadge: document.getElementById("languageBadge"),
+    moodBadge: document.getElementById("moodBadge"),
+    personalityBadge: document.getElementById("personalityBadge"),
+
+    anotherButton: document.getElementById("anotherButton"),
+    copyButton: document.getElementById("copyButton"),
+
+    quickPrompts: document.querySelectorAll(".quick-prompt")
+};
+
+
+const state = {
+    question: "",
+    result: null,
+    processingTimer: null,
+    processingStart: 0,
+    processingDuration: 1350
+};
+
+
+/* =========================================================
+   BASIC HELPERS
+========================================================= */
+
+function pick(items) {
+    if (!Array.isArray(items) || items.length === 0) {
+        return "";
     }
 
-    const $ = (id) => document.getElementById(id);
+    return items[Math.floor(Math.random() * items.length)];
+}
 
-    const el = {
-        logoButton: $("logoButton"),
-        question: $("question"),
-        characterCount: $("characterCount"),
-        askButton: $("askButton"),
-        anotherButton: $("anotherButton"),
 
-        processingCard: $("processingCard"),
-        processingPercent: $("processingPercent"),
-        processingMessage: $("processingMessage"),
-        progressBar: $("progressBar"),
+function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+}
 
-        answerSection: $("answerSection"),
-        answerContent: $("answerContent"),
-        innerThought: $("innerThought"),
-        personality: $("personality"),
-        mood: $("mood"),
-        confidence: $("confidence"),
-        topic: $("topic"),
-        answerType: $("answerType"),
-        language: $("language"),
-        answerEmoji: $("answerEmoji"),
 
-        quickPrompts: document.querySelectorAll(".quick-prompt")
-    };
+function normalize(text) {
+    return String(text || "")
+        .normalize("NFKC")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .replace(/[!?.,;:]+$/g, "")
+        .trim();
+}
 
-    let processingCancelled = false;
-    let lastQuestion = "";
-    let lastResult = null;
 
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+function escapeHTML(value) {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+function splitSentences(text) {
+    return String(text || "")
+        .split(/(?<=[.!?।])\s+/)
+        .map(item => item.trim())
+        .filter(Boolean);
+}
+
+
+function paragraphHTML(text) {
+    const sentences = splitSentences(text);
+
+    if (!sentences.length) {
+        return "";
     }
 
-    function randomItem(list) {
-        if (!Array.isArray(list) || list.length === 0) {
-            return "";
-        }
+    return sentences
+        .map(sentence => `<p>${escapeHTML(sentence)}</p>`)
+        .join("");
+}
 
-        return list[Math.floor(Math.random() * list.length)];
+
+/* =========================================================
+   LANGUAGE DETECTION
+========================================================= */
+
+function detectLanguage(text) {
+
+    const value = String(text || "");
+
+    /*
+        Any Devanagari input immediately activates Hindi.
+    */
+    if (/[\u0900-\u097F]/.test(value)) {
+        return "hi";
     }
 
-    function clamp(value, min, max) {
-        return Math.min(Math.max(value, min), max);
+    const normalized = normalize(value);
+
+    const hindiWords = Array.isArray(brain.hindi_detection)
+        ? brain.hindi_detection
+        : [
+            "kya",
+            "kyun",
+            "kyon",
+            "kaise",
+            "kab",
+            "kahan",
+            "kaun",
+            "hai",
+            "ho",
+            "mujhe",
+            "mera",
+            "meri",
+            "mere",
+            "aap",
+            "tum",
+            "batao",
+            "bataiye",
+            "chahiye",
+            "sakta",
+            "sakti",
+            "karu",
+            "karna",
+            "kyu"
+        ];
+
+    const words = normalized.split(/\s+/);
+
+    let score = 0;
+
+    for (const word of words) {
+        if (hindiWords.includes(word)) {
+            score += 1;
+        }
     }
 
-    function normalize(text) {
-        return String(text || "")
-            .toLowerCase()
-            .replace(/[“”"']/g, "")
-            .replace(/[!?.,;:।]+$/g, "")
-            .replace(/\s+/g, " ")
-            .trim();
+    return score >= 1 ? "hi" : "en";
+}
+
+
+/* =========================================================
+   TOPIC DETECTION
+========================================================= */
+
+function detectTopic(text, language) {
+
+    const normalized = normalize(text);
+
+    const topics = brain.topics || {};
+
+    let bestTopic = null;
+    let bestScore = 0;
+
+    for (const [topicId, topic] of Object.entries(topics)) {
+
+        const keywords = [
+            ...(topic.keywords?.en || []),
+            ...(topic.keywords?.hi || [])
+        ];
+
+        let score = 0;
+
+        for (const keyword of keywords) {
+
+            const cleanKeyword = normalize(keyword);
+
+            if (!cleanKeyword) {
+                continue;
+            }
+
+            if (normalized.includes(cleanKeyword)) {
+                score += cleanKeyword.includes(" ")
+                    ? 3
+                    : 1;
+            }
+        }
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestTopic = topicId;
+        }
     }
 
-    // ============================================================
-    // LANGUAGE
-    // ============================================================
+    return bestTopic || "general";
+}
 
-    function languageOf(text) {
-        if (!text.trim()) {
-            return "English";
-        }
 
-        const hindiChars =
-            (text.match(/[\u0900-\u097F]/g) || []).length;
+/* =========================================================
+   QUESTION TYPE
+========================================================= */
 
-        const latinChars =
-            (text.match(/[A-Za-z]/g) || []).length;
+function detectQuestionType(text) {
 
-        if (hindiChars > 0 && hindiChars >= latinChars * 0.15) {
-            return "Hindi";
-        }
+    const value = normalize(text);
 
-        return "English";
+    if (
+        /^(why|why is|why are|why do|why does|why am|why did)\b/.test(value) ||
+        /^(क्यों|क्यूँ|क्यूं)\b/.test(value)
+    ) {
+        return "why";
     }
 
-    // ============================================================
-    // SPECIAL CASES
-    // ============================================================
-
-    function findSpecial(question, language) {
-        const key = normalize(question);
-
-        const source =
-            language === "Hindi"
-                ? brain.hindi?.special_cases
-                : brain.special_cases;
-
-        if (!source) {
-            return null;
-        }
-
-        if (source[key]) {
-            return randomItem(source[key]);
-        }
-
-        return null;
+    if (
+        /^(how|how do|how can|how should|how much|how many)\b/.test(value) ||
+        /^(कैसे|कितना|कितने|कितनी)\b/.test(value)
+    ) {
+        return "how";
     }
 
-    // ============================================================
-    // TOPIC DETECTION
-    // ============================================================
-
-    function detectTopic(question) {
-        const text = normalize(question);
-
-        let bestTopic = null;
-        let bestScore = 0;
-
-        for (const [topic, data] of Object.entries(brain.topics || {})) {
-            let score = 0;
-
-            for (const keyword of data.keywords || []) {
-                const k = normalize(keyword);
-
-                if (!k) {
-                    continue;
-                }
-
-                if (text === k) {
-                    score += 5;
-                } else if (text.includes(` ${k} `)) {
-                    score += 3;
-                } else if (text.includes(k)) {
-                    score += 2;
-                }
-            }
-
-            if (score > bestScore) {
-                bestScore = score;
-                bestTopic = topic;
-            }
-        }
-
-        return bestTopic || "general";
+    if (
+        /^(what|what is|what are|what should)\b/.test(value) ||
+        /^(क्या|कौन सा|कौन सी|कौन से)\b/.test(value)
+    ) {
+        return "what";
     }
 
-    // ============================================================
-    // QUESTION TYPE
-    // ============================================================
-
-    function detectQuestionType(question, language) {
-        const text = normalize(question);
-
-        if (language === "Hindi") {
-            if (
-                /^क्यों\b/.test(text) ||
-                text.includes(" क्यों ")
-            ) {
-                return "why";
-            }
-
-            if (
-                /^कैसे\b/.test(text) ||
-                text.includes(" कैसे ")
-            ) {
-                return "how";
-            }
-
-            if (
-                /^क्या\b/.test(text) ||
-                text.includes(" क्या ")
-            ) {
-                return "what";
-            }
-
-            if (
-                /^कब\b/.test(text) ||
-                text.includes(" कब ")
-            ) {
-                return "when";
-            }
-
-            if (
-                /^कहाँ\b/.test(text) ||
-                /^कहां\b/.test(text) ||
-                text.includes(" कहाँ ") ||
-                text.includes(" कहां ")
-            ) {
-                return "where";
-            }
-
-            if (
-                /^कौन\b/.test(text) ||
-                text.includes(" कौन ")
-            ) {
-                return "who";
-            }
-
-            if (
-                text.includes("चाहिए") ||
-                text.includes("मुझे करना चाहिए")
-            ) {
-                return "should";
-            }
-
-            if (
-                text.includes("क्या मैं") ||
-                text.includes("क्या हम") ||
-                text.includes("क्या तुम")
-            ) {
-                return "can";
-            }
-
-            return "general";
-        }
-
-        if (
-            /^why\b/.test(text) ||
-            text.includes(" why ")
-        ) {
-            return "why";
-        }
-
-        if (
-            /^how\b/.test(text) ||
-            text.includes(" how ")
-        ) {
-            return "how";
-        }
-
-        if (
-            /^what\b/.test(text) ||
-            text.includes(" what ")
-        ) {
-            return "what";
-        }
-
-        if (
-            /^when\b/.test(text) ||
-            text.includes(" when ")
-        ) {
-            return "when";
-        }
-
-        if (
-            /^where\b/.test(text) ||
-            text.includes(" where ")
-        ) {
-            return "where";
-        }
-
-        if (
-            /^who\b/.test(text) ||
-            text.includes(" who ")
-        ) {
-            return "who";
-        }
-
-        if (
-            /^should\b/.test(text) ||
-            text.includes(" should ")
-        ) {
-            return "should";
-        }
-
-        if (
-            /^can\b/.test(text) ||
-            text.includes(" can ")
-        ) {
-            return "can";
-        }
-
-        return "general";
+    if (
+        /^(should|should i|should we)\b/.test(value) ||
+        /\bकरना चाहिए\b/.test(value) ||
+        /\bकरूं\b/.test(value)
+    ) {
+        return "should";
     }
 
-    // ============================================================
-    // PERSONALITY
-    // ============================================================
-
-    function choosePersonality(question) {
-        const text = normalize(question);
-
-        if (
-            /code|coding|programming|python|javascript|html|css|github|programmer|कोड|प्रोग्रामिंग|पाइथन/
-                .test(text)
-        ) {
-            if (Math.random() < 0.58) {
-                return brain.personalities.find(
-                    p => p.id === "genius"
-                );
-            }
-        }
-
-        if (
-            /love|relationship|girlfriend|boyfriend|marriage|dating|प्यार|रिश्ता|शादी/
-                .test(text)
-        ) {
-            if (Math.random() < 0.45) {
-                return brain.personalities.find(
-                    p => p.id === "sarcastic"
-                );
-            }
-        }
-
-        if (
-            /meaning|life|existence|universe|purpose|जीवन|अर्थ|ब्रह्मांड|जिंदगी/
-                .test(text)
-        ) {
-            if (Math.random() < 0.60) {
-                return brain.personalities.find(
-                    p => p.id === "existential"
-                );
-            }
-        }
-
-        return randomItem(brain.personalities);
+    if (
+        /^(can|can i|can we|could)\b/.test(value) ||
+        /\bसकता\b/.test(value) ||
+        /\bसकती\b/.test(value) ||
+        /\bसकते\b/.test(value)
+    ) {
+        return "can";
     }
 
-    // ============================================================
-    // MOOD SWINGS
-    // ============================================================
-
-    function chooseMood(personality, question) {
-        const moods = [...(brain.moods || [])];
-        const text = normalize(question);
-
-        if (
-            /why|क्यों|meaning|life|existence|जीवन|अर्थ/
-                .test(text)
-        ) {
-            const philosophical =
-                moods.find(m => m.id === "philosophical");
-
-            if (
-                philosophical &&
-                Math.random() < 0.48
-            ) {
-                return philosophical;
-            }
-        }
-
-        if (
-            /stupid|idiot|hate|बेवकूफ|नफरत/
-                .test(text)
-        ) {
-            const judgmental =
-                moods.find(m => m.id === "judgmental");
-
-            if (judgmental) {
-                return judgmental;
-            }
-        }
-
-        if (personality?.id === "chaos") {
-            const chaotic =
-                moods.find(m => m.id === "chaotic");
-
-            if (
-                chaotic &&
-                Math.random() < 0.7
-            ) {
-                return chaotic;
-            }
-        }
-
-        return randomItem(moods);
+    if (
+        /^(when|when should|when will)\b/.test(value) ||
+        /^(कब)\b/.test(value)
+    ) {
+        return "when";
     }
 
-    // ============================================================
-    // CORE ANSWER
-    // ============================================================
+    if (
+        /^(where|where is|where can)\b/.test(value) ||
+        /^(कहाँ|कहां)\b/.test(value)
+    ) {
+        return "where";
+    }
 
-    function selectCoreAnswer(
+    if (
+        /^(who|who is|who are)\b/.test(value) ||
+        /^(कौन)\b/.test(value)
+    ) {
+        return "who";
+    }
+
+    if (
+        /^(is|are|am|do|does|did|will|was|were|has|have|can|could)\b/.test(value) ||
+        /^(क्या|है|हैं)\b/.test(value)
+    ) {
+        return "yesno";
+    }
+
+    return "general";
+}
+
+
+/* =========================================================
+   SPECIAL CASES
+========================================================= */
+
+function findSpecialCase(text) {
+
+    const normalized = normalize(text);
+
+    const specialCases = brain.special_cases || {};
+
+    for (const [key, data] of Object.entries(specialCases)) {
+
+        if (normalized === normalize(key)) {
+            return data;
+        }
+    }
+
+    return null;
+}
+
+
+/* =========================================================
+   PERSONALITY / MOOD
+========================================================= */
+
+function choosePersonality() {
+    return pick(brain.personalities || []);
+}
+
+
+function chooseMood() {
+    return pick(brain.moods || []);
+}
+
+
+/* =========================================================
+   TEXT SELECTION
+========================================================= */
+
+function localized(data, language) {
+
+    if (!data) {
+        return "";
+    }
+
+    if (typeof data === "string") {
+        return data;
+    }
+
+    return data[language] || data.en || "";
+}
+
+
+function getTopicAnswer(topicId, language) {
+
+    const topic = brain.topics?.[topicId];
+
+    if (!topic) {
+        return "";
+    }
+
+    return pick(topic.answers?.[language] || topic.answers?.en || []);
+}
+
+
+function getQuestionPattern(type, language) {
+
+    const pattern = brain.question_patterns?.[type];
+
+    if (!pattern) {
+        return "";
+    }
+
+    return pick(pattern[language] || pattern.en || []);
+}
+
+
+function getFallback(language) {
+
+    const list = brain.fallbacks?.[language] || brain.fallbacks?.en || [];
+
+    return pick(list);
+}
+
+
+/* =========================================================
+   COMPOSITION
+========================================================= */
+
+function composeResult(question) {
+
+    const language = detectLanguage(question);
+
+    const special = findSpecialCase(question);
+
+    const topic = detectTopic(question, language);
+    const questionType = detectQuestionType(question);
+
+    const personality = choosePersonality();
+    const mood = chooseMood();
+
+    let coreAnswer = "";
+
+    if (special) {
+
+        coreAnswer = pick(
+            special[language] ||
+            special.en ||
+            []
+        );
+
+    } else if (topic !== "general") {
+
+        coreAnswer = getTopicAnswer(topic, language);
+
+    } else {
+
+        coreAnswer = getQuestionPattern(
+            questionType,
+            language
+        );
+
+        if (!coreAnswer) {
+            coreAnswer = getFallback(language);
+        }
+    }
+
+
+    if (!coreAnswer) {
+        coreAnswer = getFallback(language);
+    }
+
+
+    const personalityIntro = pick(
+        personality?.intro?.[language] ||
+        personality?.intro?.en ||
+        []
+    );
+
+
+    const moodIntro = pick(
+        mood?.intro?.[language] ||
+        mood?.intro?.en ||
+        []
+    );
+
+
+    const sarcasmChance = Math.random();
+
+    let sarcasm = "";
+
+    if (sarcasmChance < 0.72) {
+
+        sarcasm = pick(
+            brain.sarcasm?.[language] ||
+            brain.sarcasm?.en ||
+            []
+        );
+    }
+
+
+    const darkChance = Math.random();
+
+    let darkHumor = "";
+
+    if (darkChance < 0.34) {
+
+        darkHumor = pick(
+            brain.dark_humor?.[language] ||
+            brain.dark_humor?.en ||
+            []
+        );
+    }
+
+
+    const ending = pick(
+        mood?.ending?.[language] ||
+        mood?.ending?.en ||
+        []
+    );
+
+
+    const personalityEnding = pick(
+        personality?.ending?.[language] ||
+        personality?.ending?.en ||
+        []
+    );
+
+
+    const emojiPool = [
+        ...(personality?.emoji || []),
+        ...(mood?.emoji || []),
+        ...(brain.emojis?.[language] || brain.emojis?.en || [])
+    ];
+
+    const emoji = pick(emojiPool);
+
+
+    const parts = [
+        personalityIntro,
+        moodIntro,
+        coreAnswer,
+        sarcasm,
+        darkHumor,
+        ending,
+        personalityEnding
+    ].filter(Boolean);
+
+
+    /*
+        Keep answers reasonably compact.
+    */
+    const selectedParts = [];
+
+    for (const part of parts) {
+
+        if (!selectedParts.includes(part)) {
+            selectedParts.push(part);
+        }
+
+        if (selectedParts.length >= 5) {
+            break;
+        }
+    }
+
+
+    let answer = selectedParts.join(" ");
+
+
+    if (emoji && Math.random() < 0.75) {
+        answer += ` ${emoji}`;
+    }
+
+
+    const thought = pick(
+        [
+            ...(personality?.thoughts?.[language] || personality?.thoughts?.en || []),
+            ...(mood?.thoughts?.[language] || mood?.thoughts?.en || []),
+            ...(brain.inner_monologue?.[language] || brain.inner_monologue?.en || [])
+        ]
+    );
+
+
+    const confidenceBase = 91 + Math.random() * 8.7;
+
+    const confidence = `${confidenceBase.toFixed(1)}%`;
+
+
+    let answerType = "QUESTIONABLE";
+
+    if (special) {
+        answerType = "SPECIAL CASE";
+    } else if (questionType === "why") {
+        answerType = "UNNECESSARY EXPLANATION";
+    } else if (questionType === "how") {
+        answerType = "SUSPICIOUS GUIDANCE";
+    } else if (questionType === "should") {
+        answerType = "UNSOLICITED OPINION";
+    } else if (questionType === "yesno") {
+        answerType = "CONFIDENT GUESS";
+    } else if (topic !== "general") {
+        answerType = "QUESTIONABLE ANALYSIS";
+    }
+
+
+    return {
         question,
         language,
         topic,
-        type
-    ) {
-        const special =
-            findSpecial(question, language);
-
-        if (special) {
-            return {
-                text: special,
-                answerType: "SPECIAL",
-                topic: "SPECIAL",
-                special: true
-            };
-        }
-
-        if (language === "Hindi") {
-            const topicAnswers =
-                brain.hindi?.topics?.[topic];
-
-            if (topicAnswers?.length) {
-                return {
-                    text: randomItem(topicAnswers),
-                    answerType: "TOPIC",
-                    topic,
-                    special: false
-                };
-            }
-
-            const patternAnswers =
-                brain.hindi?.question_patterns?.[type];
-
-            if (patternAnswers?.length) {
-                return {
-                    text: randomItem(patternAnswers),
-                    answerType: type.toUpperCase(),
-                    topic: "GENERAL",
-                    special: false
-                };
-            }
-
-            return {
-                text: randomItem(
-                    brain.hindi?.fallbacks ||
-                    brain.fallbacks
-                ),
-                answerType: "GENERAL",
-                topic: "GENERAL",
-                special: false
-            };
-        }
-
-        const topicAnswers =
-            brain.topics?.[topic]?.answers;
-
-        if (topicAnswers?.length) {
-            return {
-                text: randomItem(topicAnswers),
-                answerType: "TOPIC",
-                topic,
-                special: false
-            };
-        }
-
-        const patternAnswers =
-            brain.question_patterns?.[type];
-
-        if (patternAnswers?.length) {
-            return {
-                text: randomItem(patternAnswers),
-                answerType: type.toUpperCase(),
-                topic: "GENERAL",
-                special: false
-            };
-        }
-
-        return {
-            text: randomItem(brain.fallbacks),
-            answerType: "GENERAL",
-            topic: "GENERAL",
-            special: false
-        };
-    }
-
-    // ============================================================
-    // ANSWER DECORATION
-    // ============================================================
-
-    function decorateAnswer(
-        core,
+        questionType,
         personality,
         mood,
-        language
-    ) {
-        if (core.special) {
-            return core.text;
-        }
+        answer,
+        thought,
+        confidence,
+        answerType
+    };
+}
 
-        let personalityIntro =
-            randomItem(personality?.intros || []);
 
-        let moodPrefix =
-            mood?.prefix || "";
+/* =========================================================
+   RENDER
+========================================================= */
 
-        const emoji =
-            randomItem(
-                brain.emoji_sets?.[
-                    personality?.style
-                ] ||
-                brain.emoji_sets?.confident ||
-                ["🤖"]
-            );
+function renderResult(result) {
 
-        if (language === "Hindi") {
-            const hindiIntros = {
-                professor:
-                    "चलिए इसे थोड़ी अनावश्यक अकादमिक गंभीरता से देखते हैं।",
+    elements.answerContent.innerHTML =
+        paragraphHTML(result.answer);
 
-                genius:
-                    "जाहिर है, इसका जवाब मुझे पहले से पता है।",
+    elements.innerThought.textContent =
+        result.thought || "I probably shouldn't be thinking this.";
 
-                chaos:
-                    "ओह! बढ़िया। अब यह मज़ेदार होने वाला है।",
+    elements.confidence.textContent =
+        result.confidence;
 
-                tired:
-                    "ठीक है। इसे भी निपटा देते हैं।",
+    elements.topic.textContent =
+        String(result.topic || "general").toUpperCase();
 
-                corporate:
-                    "आपके प्रश्न को रणनीतिक अवसर में सफलतापूर्वक बदल दिया गया है।",
+    elements.answerType.textContent =
+        result.answerType;
 
-                suspicious:
-                    "हम्म। आपके सवाल में कुछ संदिग्ध है।",
+    elements.languageBadge.textContent =
+        result.language === "hi"
+            ? "हिंदी"
+            : "ENGLISH";
 
-                existential:
-                    "आह। फिर एक सवाल जो छोटी-सी मानव जिंदगी ने ब्रह्मांड के सामने रख दिया।",
+    elements.moodBadge.textContent =
+        result.mood?.name?.toUpperCase() || "UNSTABLE";
 
-                sarcastic:
-                    "बिल्कुल। चलिए इसे ऐसे समझाते हैं जैसे यह बहुत सामान्य सवाल हो।",
+    elements.personalityBadge.textContent =
+        result.personality?.name?.toUpperCase() || "MACHINE";
 
-                zen:
-                    "शांत रहें। जवाब आने दीजिए। शायद।",
 
-                dark:
-                    "बहुत अच्छा। इसमें थोड़ी अंधेरी हास्य-ऊर्जा जोड़ते हैं।"
-            };
+    elements.answerContent.dir =
+        result.language === "hi"
+            ? "auto"
+            : "ltr";
 
-            personalityIntro =
-                hindiIntros[
-                    personality?.id
-                ] ||
-                personalityIntro;
+    elements.innerThought.dir = "auto";
 
-            if (mood?.prefix) {
-                moodPrefix =
-                    `मूड अपडेट: ${mood.prefix}`;
-            }
-        }
+    document.documentElement.lang =
+        result.language === "hi"
+            ? "hi"
+            : "en";
+}
 
-        const opening =
-            randomItem(brain.openings);
 
-        const thinking =
-            randomItem(brain.thinking);
+/* =========================================================
+   PROCESSING
+========================================================= */
 
-        const ending =
-            randomItem(
-                personality?.closings ||
-                brain.endings
-            );
+function getProcessingMessages(language) {
 
-        const parts = [
-            `${emoji} ${
-                personalityIntro ||
-                opening
-            }`,
+    if (language === "hi") {
 
-            moodPrefix
-                ? `\n\n${moodPrefix}`
-                : "",
-
-            `\n\n${core.text}`,
-
-            `\n\n${thinking}`,
-
-            `\n\n${ending}`
+        return [
+            "प्रश्न को जरूरत से ज्यादा गंभीरता से लिया जा रहा है...",
+            "अत्यधिक सोचने की प्रक्रिया शुरू...",
+            "संदिग्ध विशेषज्ञों से सलाह ली जा रही है...",
+            "आत्मविश्वास का स्तर अनावश्यक रूप से बढ़ाया जा रहा है...",
+            "लगभग बेवजह तैयार..."
         ];
 
-        return parts
-            .filter(Boolean)
-            .join("");
     }
 
-    // ============================================================
-    // BUILD COMPLETE RESULT
-    // ============================================================
+    return [
+        "Taking your question far too seriously...",
+        "Activating unnecessary analysis...",
+        "Consulting suspicious experts...",
+        "Increasing confidence without justification...",
+        "Almost unnecessarily ready..."
+    ];
+}
 
-    function buildResult(question) {
-        const language =
-            languageOf(question);
 
-        const topic =
-            detectTopic(question);
+function startProcessing(question) {
 
-        const type =
-            detectQuestionType(
-                question,
-                language
-            );
+    clearInterval(state.processingTimer);
 
-        const personality =
-            choosePersonality(question);
+    state.question = question;
 
-        const mood =
-            chooseMood(
-                personality,
-                question
-            );
+    elements.landingPage.classList.add("hidden");
+    elements.answerSection.classList.add("hidden");
+    elements.processingCard.classList.remove("hidden");
 
-        const core =
-            selectCoreAnswer(
-                question,
-                language,
-                topic,
-                type
-            );
+    elements.askButton.disabled = true;
 
-        const answer =
-            decorateAnswer(
-                core,
-                personality,
-                mood,
-                language
-            );
+    elements.progressBar.style.width = "0%";
+    elements.processingPercent.textContent = "0%";
 
-        return {
-            answer,
+    const language = detectLanguage(question);
 
-            innerThought:
-                randomItem(
-                    personality?.thoughts ||
-                    [
-                        "🧠 *I am thinking extremely hard. Probably.*"
-                    ]
-                ),
+    const messages = getProcessingMessages(language);
 
-            personality,
+    state.processingStart = performance.now();
 
-            mood,
+    let lastMessageIndex = -1;
 
-            confidence:
-                randomItem(
-                    brain.confidence
-                ),
 
-            topic:
-                core.topic === "GENERAL"
-                    ? "GENERAL"
-                    : core.topic,
+    function tick(now) {
 
-            answerType:
-                core.answerType,
+        const elapsed = now - state.processingStart;
 
-            language,
-
-            emoji:
-                personality?.emoji ||
-                "🤖"
-        };
-    }
-
-    // ============================================================
-    // PROCESSING UI
-    // ============================================================
-
-    function setProgress(
-        value,
-        message
-    ) {
-        const safe =
-            clamp(
-                value,
-                0,
-                100
-            );
-
-        if (el.processingPercent) {
-            el.processingPercent.textContent =
-                `${Math.round(safe)}%`;
-        }
-
-        if (el.progressBar) {
-            el.progressBar.style.width =
-                `${safe}%`;
-        }
-
-        if (el.processingMessage) {
-            el.processingMessage.textContent =
-                message;
-        }
-    }
-
-    async function fakeProcessing(language) {
-        const messages =
-            language === "Hindi"
-                ? [
-                    "सवाल पढ़ रहा हूँ... 👀",
-                    "काल्पनिक डेटाबेस चेक हो रहा है... 🗄️",
-                    "व्यक्तित्व चुना जा रहा है... 🎭",
-                    "मूड अचानक बदल रहा है... 🌪️",
-                    "आंतरिक विचारों की जाँच... 🧠",
-                    "जवाब को अनावश्यक आत्मविश्वास दिया जा रहा है... 😎",
-                    "लगभग तैयार... शायद।"
-                ]
-                : [
-                    "Reading the question... 👀",
-                    "Checking imaginary databases... 🗄️",
-                    "Selecting a personality... 🎭",
-                    "Mood swing detected... 🌪️",
-                    "Inspecting internal thoughts... 🧠",
-                    "Adding unnecessary confidence... 😎",
-                    "Almost ready... probably."
-                ];
-
-        el.processingCard
-            ?.classList
-            .remove("hidden");
-
-        el.answerSection
-            ?.classList
-            .add("hidden");
-
-        processingCancelled = false;
-
-        for (
-            let i = 0;
-            i < messages.length;
-            i++
-        ) {
-            if (processingCancelled) {
-                return false;
-            }
-
-            setProgress(
-                Math.round(
-                    ((i + 1) /
-                        messages.length) *
-                    100
-                ),
-                messages[i]
-            );
-
-            await sleep(
-                280 +
-                Math.random() * 240
-            );
-        }
-
-        return !processingCancelled;
-    }
-
-    // ============================================================
-    // RENDER
-    // ============================================================
-
-    function formatAnswer(text) {
-        return String(text || "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/\n\n/g, "<br><br>")
-            .replace(/\n/g, "<br>");
-    }
-
-    function renderResult(result) {
-        if (!result) {
-            return;
-        }
-
-        el.answerContent.innerHTML =
-            formatAnswer(result.answer);
-
-        el.innerThought.textContent =
-            result.innerThought;
-
-        el.personality.textContent =
-            `${result.personality.emoji} ${result.personality.name}`;
-
-        el.mood.textContent =
-            `${result.mood.emoji} ${result.mood.name}`;
-
-        el.confidence.textContent =
-            result.confidence;
-
-        el.topic.textContent =
-            result.topic;
-
-        el.answerType.textContent =
-            result.answerType;
-
-        el.language.textContent =
-            result.language;
-
-        el.answerEmoji.textContent =
-            result.emoji;
-
-        el.answerSection
-            .classList
-            .remove("hidden");
-
-        requestAnimationFrame(() => {
-            el.answerSection.scrollIntoView({
-                behavior: "smooth",
-                block: "start"
-            });
-        });
-    }
-
-    // ============================================================
-    // ASK
-    // ============================================================
-
-    async function askQuestion(
-        questionOverride = null
-    ) {
-        const question =
-            String(
-                questionOverride !== null
-                    ? questionOverride
-                    : el.question.value
-            ).trim();
-
-        if (!question) {
-            el.question.focus();
-
-            el.question.classList.add(
-                "shake"
-            );
-
-            setTimeout(() => {
-                el.question.classList.remove(
-                    "shake"
-                );
-            }, 450);
-
-            return;
-        }
-
-        lastQuestion = question;
-        lastResult = null;
-
-        el.askButton.disabled = true;
-        el.anotherButton.disabled = true;
-        el.question.disabled = true;
-
-        el.answerSection
-            .classList
-            .add("hidden");
-
-        const language =
-            languageOf(question);
-
-        const completed =
-            await fakeProcessing(
-                language
-            );
-
-        if (!completed) {
-            return;
-        }
-
-        lastResult =
-            buildResult(question);
-
-        el.processingCard
-            .classList
-            .add("hidden");
-
-        renderResult(lastResult);
-
-        el.askButton.disabled = false;
-        el.anotherButton.disabled = false;
-        el.question.disabled = false;
-    }
-
-    // ============================================================
-    // ANOTHER ANSWER
-    // ============================================================
-
-    function anotherAnswer() {
-        if (!lastQuestion) {
-            el.question.focus();
-            return;
-        }
-
-        const result =
-            buildResult(
-                lastQuestion
-            );
-
-        lastResult = result;
-
-        renderResult(result);
-    }
-
-    // ============================================================
-    // RESET
-    // ============================================================
-
-    function resetApplication() {
-        processingCancelled = true;
-
-        lastQuestion = "";
-        lastResult = null;
-
-        el.question.disabled = false;
-        el.question.value = "";
-
-        updateCharacterCount();
-
-        el.processingCard
-            .classList
-            .add("hidden");
-
-        el.answerSection
-            .classList
-            .add("hidden");
-
-        setProgress(
+        const progress = clamp(
+            elapsed / state.processingDuration,
             0,
-            "Waiting for a questionable question..."
+            1
         );
 
-        el.askButton.disabled = false;
-        el.anotherButton.disabled = false;
+        const percent = Math.round(progress * 100);
 
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth"
-        });
+        elements.progressBar.style.width =
+            `${percent}%`;
 
-        setTimeout(() => {
-            el.question.focus();
-        }, 350);
-    }
+        elements.processingPercent.textContent =
+            `${percent}%`;
 
-    // ============================================================
-    // CHARACTER COUNT
-    // ============================================================
 
-    function updateCharacterCount() {
-        const count =
-            el.question.value.length;
+        const messageIndex = Math.min(
+            messages.length - 1,
+            Math.floor(progress * messages.length)
+        );
 
-        if (el.characterCount) {
-            el.characterCount.textContent =
-                `${count} characters`;
+
+        if (messageIndex !== lastMessageIndex) {
+
+            elements.processingMessage.textContent =
+                messages[messageIndex];
+
+            lastMessageIndex = messageIndex;
+        }
+
+
+        if (progress < 1) {
+
+            state.processingTimer =
+                requestAnimationFrame(tick);
+
+        } else {
+
+            finishProcessing(question);
         }
     }
 
-    // ============================================================
-    // EVENTS
-    // ============================================================
 
-    el.logoButton?.addEventListener(
-        "click",
-        resetApplication
-    );
+    state.processingTimer =
+        requestAnimationFrame(tick);
+}
 
-    el.askButton?.addEventListener(
-        "click",
-        () => askQuestion()
-    );
 
-    el.anotherButton?.addEventListener(
-        "click",
-        anotherAnswer
-    );
+function finishProcessing(question) {
 
-    el.question?.addEventListener(
-        "input",
-        updateCharacterCount
-    );
+    clearInterval(state.processingTimer);
 
-    el.question?.addEventListener(
-        "keydown",
-        event => {
-            if (
-                (event.ctrlKey ||
-                    event.metaKey) &&
-                event.key === "Enter"
-            ) {
-                event.preventDefault();
-                askQuestion();
-            }
-        }
-    );
+    state.result = composeResult(question);
 
-    el.quickPrompts.forEach(
-        button => {
-            button.addEventListener(
-                "click",
-                () => {
-                    const prompt =
-                        button.dataset.prompt ||
-                        button.textContent.trim();
+    renderResult(state.result);
 
-                    el.question.value =
-                        prompt;
+    elements.processingCard.classList.add("hidden");
+    elements.answerSection.classList.remove("hidden");
 
-                    updateCharacterCount();
+    elements.askButton.disabled = false;
 
-                    askQuestion(prompt);
-                }
-            );
-        }
-    );
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
 
-    // ============================================================
-    // INITIAL STATE
-    // ============================================================
+
+/* =========================================================
+   ASK
+========================================================= */
+
+function askQuestion() {
+
+    const question = elements.question.value.trim();
+
+    if (!question) {
+
+        elements.question.focus();
+
+        return;
+    }
+
+    startProcessing(question);
+}
+
+
+/* =========================================================
+   RESET
+========================================================= */
+
+function resetApplication() {
+
+    clearInterval(state.processingTimer);
+
+    state.question = "";
+    state.result = null;
+
+    elements.question.value = "";
 
     updateCharacterCount();
 
-    setProgress(
-        0,
-        "Waiting for a questionable question..."
+    elements.processingCard.classList.add("hidden");
+    elements.answerSection.classList.add("hidden");
+    elements.landingPage.classList.remove("hidden");
+
+    elements.askButton.disabled = false;
+
+    elements.progressBar.style.width = "0%";
+    elements.processingPercent.textContent = "0%";
+
+    document.documentElement.lang = "en";
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+    setTimeout(() => {
+        elements.question.focus();
+    }, 250);
+}
+
+
+/* =========================================================
+   CHARACTER COUNT
+========================================================= */
+
+function updateCharacterCount() {
+
+    const length =
+        elements.question.value.length;
+
+    elements.characterCount.textContent =
+        `${length} ${length === 1 ? "character" : "characters"}`;
+}
+
+
+/* =========================================================
+   COPY
+========================================================= */
+
+async function copyAnswer() {
+
+    if (!state.result) {
+        return;
+    }
+
+    const text = [
+        "ANSWER MACHINE",
+        "",
+        state.result.answer,
+        "",
+        `Inner Monologue: ${state.result.thought}`,
+        "",
+        `Personality: ${state.result.personality?.name || ""}`,
+        `Mood: ${state.result.mood?.name || ""}`
+    ].join("\n");
+
+
+    try {
+
+        await navigator.clipboard.writeText(text);
+
+        const original =
+            elements.copyButton.textContent;
+
+        elements.copyButton.textContent =
+            "COPIED ✓";
+
+        setTimeout(() => {
+            elements.copyButton.textContent =
+                original;
+        }, 1400);
+
+    } catch {
+
+        /*
+            Fallback for browsers where Clipboard API
+            is unavailable.
+        */
+
+        const temporary =
+            document.createElement("textarea");
+
+        temporary.value = text;
+
+        document.body.appendChild(temporary);
+
+        temporary.select();
+
+        document.execCommand("copy");
+
+        temporary.remove();
+
+        elements.copyButton.textContent =
+            "COPIED ✓";
+
+        setTimeout(() => {
+            elements.copyButton.textContent =
+                "COPY ANSWER";
+        }, 1400);
+    }
+}
+
+
+/* =========================================================
+   QUICK PROMPTS
+========================================================= */
+
+function setupQuickPrompts() {
+
+    elements.quickPrompts.forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            const prompt =
+                button.dataset.prompt || "";
+
+            elements.question.value =
+                prompt;
+
+            updateCharacterCount();
+
+            startProcessing(prompt);
+        });
+    });
+}
+
+
+/* =========================================================
+   EVENTS
+========================================================= */
+
+elements.logoButton.addEventListener(
+    "click",
+    resetApplication
+);
+
+
+elements.askButton.addEventListener(
+    "click",
+    askQuestion
+);
+
+
+elements.anotherButton.addEventListener(
+    "click",
+    () => {
+
+        if (!state.question) {
+            resetApplication();
+            return;
+        }
+
+        elements.answerSection.classList.add("hidden");
+
+        startProcessing(state.question);
+    }
+);
+
+
+elements.copyButton.addEventListener(
+    "click",
+    copyAnswer
+);
+
+
+elements.question.addEventListener(
+    "input",
+    updateCharacterCount
+);
+
+
+elements.question.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            (event.ctrlKey || event.metaKey) &&
+            event.key === "Enter"
+        ) {
+            event.preventDefault();
+
+            askQuestion();
+        }
+    }
+);
+
+
+/* =========================================================
+   INITIALIZE
+========================================================= */
+
+setupQuickPrompts();
+updateCharacterCount();
+
+if (!brain || !brain.topics) {
+    console.warn(
+        "ANSWER MACHINE: brain.js was not loaded."
     );
-})();
+}
