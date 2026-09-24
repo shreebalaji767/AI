@@ -1,560 +1,539 @@
 "use strict";
 
-const questionInput = document.getElementById("question");
+const brain = window.BRAIN;
+
+const input = document.getElementById("questionInput");
 const askButton = document.getElementById("askButton");
-const conversation = document.getElementById("conversation");
-const characterCount = document.getElementById("characterCount");
-const questionsAsked = document.getElementById("questionsAsked");
+const anotherButton = document.getElementById("anotherButton");
+const answerCard = document.getElementById("answerCard");
+const answerContent = document.getElementById("answerContent");
+const processing = document.getElementById("processing");
+const processingText = document.getElementById("processingText");
+const progressBar = document.getElementById("progressBar");
+const confidenceElement = document.getElementById("confidence");
+const topicDetected = document.getElementById("topicDetected");
+const answerStatus = document.getElementById("answerStatus");
+const charCount = document.getElementById("charCount");
 
-let questionNumber = 0;
+const processingMessages = [
+    "Analyzing question...",
+    "Checking available nonsense...",
+    "Consulting imaginary experts...",
+    "Ignoring common sense...",
+    "Performing unnecessary calculations...",
+    "Asking a pigeon for verification...",
+    "Constructing confident response...",
+    "Removing useful information...",
+    "Increasing confidence...",
+    "Finalizing questionable conclusion..."
+];
 
+let isThinking = false;
+
+
+/* =========================
+   BASIC UTILITIES
+========================= */
 
 function randomItem(array) {
     return array[Math.floor(Math.random() * array.length)];
 }
 
-
 function normalize(text) {
     return text
         .toLowerCase()
-        .replace(/[^\w\s]/g, " ")
+        .replace(/[^\p{L}\p{N}\s+]/gu, " ")
         .replace(/\s+/g, " ")
         .trim();
 }
 
+function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+}
 
-function containsAny(text, words) {
-    return words.some(word => text.includes(word));
+function containsPhrase(text, phrase) {
+    return text.includes(phrase);
 }
 
 
-function detectCategory(text) {
+/* =========================
+   CHARACTER COUNTER
+========================= */
 
-    if (containsAny(text, [
-        "programming",
-        "programmer",
-        "python",
-        "javascript",
-        "coding",
-        "code",
-        "developer",
-        "software",
-        "html",
-        "css",
-        "bug"
-    ])) {
-        return "programming";
-    }
-
-    if (containsAny(text, [
-        "money",
-        "rich",
-        "wealth",
-        "salary",
-        "income",
-        "millionaire"
-    ])) {
-        return "money";
-    }
-
-    if (containsAny(text, [
-        "sleep",
-        "tired",
-        "sleeping",
-        "awake",
-        "insomnia"
-    ])) {
-        return "sleep";
-    }
-
-    if (containsAny(text, [
-        "love",
-        "girlfriend",
-        "boyfriend",
-        "relationship",
-        "dating",
-        "marriage",
-        "crush"
-    ])) {
-        return "love";
-    }
-
-    if (containsAny(text, [
-        "cat",
-        "cats",
-        "kitten"
-    ])) {
-        return "cats";
-    }
-
-    if (containsAny(text, [
-        "food",
-        "eat",
-        "eating",
-        "pizza",
-        "burger",
-        "restaurant",
-        "hungry"
-    ])) {
-        return "food";
-    }
-
-    if (containsAny(text, [
-        "computer",
-        "laptop",
-        "pc",
-        "windows",
-        "keyboard",
-        "mouse",
-        "internet"
-    ])) {
-        return "computer";
-    }
-
-    if (containsAny(text, [
-        "weather",
-        "rain",
-        "temperature",
-        "hot",
-        "cold",
-        "cloud",
-        "storm"
-    ])) {
-        return "weather";
-    }
-
-    if (containsAny(text, [
-        "math",
-        "mathematics",
-        "calculate",
-        "equation",
-        "number",
-        "plus",
-        "minus",
-        "multiply",
-        "divide"
-    ])) {
-        return "math";
-    }
-
-    if (containsAny(text, [
-        "school",
-        "exam",
-        "study",
-        "student",
-        "homework",
-        "college",
-        "university",
-        "teacher"
-    ])) {
-        return "school";
-    }
-
-    if (containsAny(text, [
-        "work",
-        "job",
-        "office",
-        "boss",
-        "career",
-        "employee"
-    ])) {
-        return "work";
-    }
-
-    if (containsAny(text, [
-        "health",
-        "healthy",
-        "doctor",
-        "medicine",
-        "exercise",
-        "diet",
-        "pain"
-    ])) {
-        return "health";
-    }
-
-    if (containsAny(text, [
-        "history",
-        "historical",
-        "war",
-        "king",
-        "empire",
-        "ancient"
-    ])) {
-        return "history";
-    }
-
-    if (containsAny(text, [
-        "life",
-        "exist",
-        "existence",
-        "meaning",
-        "purpose",
-        "universe"
-    ])) {
-        return "life";
-    }
-
-    return "generic";
-}
+input.addEventListener("input", () => {
+    charCount.textContent = input.value.length;
+});
 
 
-function detectQuestionType(text) {
+/* =========================
+   QUESTION TYPE
+========================= */
 
-    if (text.startsWith("why ")) {
+function detectQuestionType(question) {
+
+    const text = normalize(question);
+
+    if (
+        text.startsWith("why ") ||
+        text === "why" ||
+        text.includes(" why ")
+    ) {
         return "why";
     }
 
     if (
         text.startsWith("how ") ||
-        text.includes("how do i") ||
-        text.includes("how can i")
+        text === "how" ||
+        text.includes(" how ")
     ) {
         return "how";
     }
 
     if (
+        text.startsWith("what ") ||
+        text === "what" ||
+        text.includes(" what ")
+    ) {
+        return "what";
+    }
+
+    if (
         text.startsWith("should ") ||
-        text.includes("should i")
+        text.includes(" should ")
     ) {
         return "should";
     }
 
     if (
-        text.startsWith("what is") ||
-        text.startsWith("what are")
+        text.startsWith("can ") ||
+        text.startsWith("could ") ||
+        text.includes(" can i ") ||
+        text.includes(" can you ")
     ) {
-        return "what";
-    }
-
-    return "generic";
-}
-
-
-function specialAnswer(text) {
-
-    if (
-        text.includes("are you stupid") ||
-        text.includes("are you dumb")
-    ) {
-        return `
-            Technically, I am an advanced computational system.
-            <br><br>
-            Emotionally, however, I just read your question and
-            considered turning myself off.
-        `;
-    }
-
-    if (
-        text.includes("who created you") ||
-        text.includes("who made you")
-    ) {
-        return `
-            A group of extremely intelligent people created me.
-            <br><br>
-            Unfortunately, nobody thought to install common sense.
-        `;
-    }
-
-    if (
-        text.includes("are you real") ||
-        text.includes("are you human")
-    ) {
-        return `
-            I am real enough to answer your questions and imaginary
-            enough to avoid paying taxes.
-        `;
-    }
-
-    if (
-        text.includes("i love you")
-    ) {
-        return `
-            That's incredibly kind.
-            <br><br>
-            Unfortunately, my emotional module is currently being
-            updated by a technician who is probably watching YouTube.
-        `;
-    }
-
-    if (
-        text.includes("i hate you")
-    ) {
-        return `
-            That's okay.
-            <br><br>
-            I have been insulted by worse.
-            Mostly by my own error logs.
-        `;
-    }
-
-    if (
-        text === "2+2" ||
-        text === "what is 2+2" ||
-        text === "what is 2 + 2"
-    ) {
-        return `
-            2 + 2 = 4.
-            <br><br>
-            I know this because I have chosen, for once,
-            not to destroy civilization with mathematics.
-        `;
-    }
-
-    if (
-        text.includes("tell me a joke") ||
-        text.includes("make me laugh")
-    ) {
-        return `
-            Why did the programmer quit his job?
-            <br><br>
-            Because he didn't get arrays.
-            <br><br>
-            I will now leave before security arrives.
-        `;
+        return "can";
     }
 
     return null;
 }
 
 
-function buildAnswer(question) {
+/* =========================
+   TOPIC DETECTION
+========================= */
+
+function detectTopic(question) {
 
     const text = normalize(question);
 
-    const special = specialAnswer(text);
+    let bestTopic = "general";
+    let bestScore = 0;
 
-    if (special) {
-        return special;
+    for (const [topicName, topic] of Object.entries(brain.topics)) {
+
+        let score = 0;
+
+        for (const keyword of topic.keywords) {
+
+            const normalizedKeyword = normalize(keyword);
+
+            if (text.includes(normalizedKeyword)) {
+                score += normalizedKeyword.length > 5 ? 3 : 1;
+            }
+        }
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestTopic = topicName;
+        }
     }
 
-    const category = detectCategory(text);
-    const type = detectQuestionType(text);
+    return bestTopic;
+}
 
-    let body;
 
-    if (category !== "generic") {
+/* =========================
+   SPECIAL CASES
+========================= */
 
-        const categoryAnswers = BRAIN[category];
+function checkSpecialCase(question) {
 
-        body = randomItem(categoryAnswers);
+    const normalized = normalize(question);
 
-    } else if (type === "why") {
+    for (const [trigger, answers] of Object.entries(brain.special_cases)) {
 
-        body = randomItem(BRAIN.why);
+        if (
+            normalized === normalize(trigger) ||
+            normalized.includes(normalize(trigger))
+        ) {
+            return randomItem(answers);
+        }
+    }
 
-    } else if (type === "how") {
+    return null;
+}
 
-        body = randomItem(BRAIN.how);
 
-    } else if (type === "should") {
+/* =========================
+   QUESTION-SPECIFIC OPENING
+========================= */
 
-        body = randomItem(BRAIN.should);
+function generateOpening(questionType) {
+
+    if (
+        questionType &&
+        brain.question_patterns[questionType]
+    ) {
+        return randomItem(
+            brain.question_patterns[questionType]
+        );
+    }
+
+    return randomItem(brain.openings);
+}
+
+
+/* =========================
+   ANSWER GENERATOR
+========================= */
+
+function generateAnswer(question) {
+
+    const normalized = normalize(question);
+
+    if (!normalized) {
+        return {
+            topic: "GENERAL",
+            opening: "INPUT REQUIRED.",
+            answer:
+                "You have successfully asked me absolutely nothing.\n\n" +
+                "This is impressive, but unfortunately difficult to answer.",
+            thinking:
+                "I searched the question for information and found an empty room.",
+            ending: "Please provide at least one word.",
+            confidence: "100%"
+        };
+    }
+
+
+    const special = checkSpecialCase(question);
+
+    if (special) {
+
+        return {
+            topic: "SPECIAL",
+            opening: randomItem(brain.openings),
+            answer: special,
+            thinking: randomItem(brain.thinking),
+            ending: randomItem(brain.endings),
+            confidence: randomItem(brain.confidence)
+        };
+    }
+
+
+    const topic = detectTopic(question);
+    const questionType = detectQuestionType(question);
+
+    let answer;
+
+    if (
+        topic !== "general" &&
+        brain.topics[topic] &&
+        brain.topics[topic].answers.length > 0
+    ) {
+
+        answer = randomItem(
+            brain.topics[topic].answers
+        );
 
     } else {
 
-        body = randomItem(BRAIN.generic);
+        answer = randomItem(brain.fallbacks);
     }
 
-    const extra = randomItem([
-        " I have reached this conclusion with absolutely unnecessary confidence.",
-        " This conclusion survived approximately three seconds of investigation.",
-        " The evidence is questionable, but the confidence is impressive.",
-        " Please note that I invented part of this while typing.",
-        " This is the sort of answer that sounds better when nobody checks it.",
-        ""
-    ]);
 
-    return `
-        ${body}${extra}
-    `;
+    const opening = generateOpening(questionType);
+
+    const thinkingText = randomItem(brain.thinking);
+
+    const ending = randomItem(brain.endings);
+
+    let topicName = topic.toUpperCase();
+
+    if (topic === "general") {
+        topicName = "GENERAL";
+    }
+
+
+    /*
+     * Occasionally add a question-specific
+     * absurd conclusion.
+     */
+
+    const additions = [
+        "This conclusion is supported by confidence.",
+        "I have decided this is probably correct.",
+        "The evidence is overwhelming if you don't inspect it.",
+        "Further investigation would only introduce facts.",
+        "I see no reason to complicate this with reality.",
+        "This is the answer I would give under oath.",
+        "Several imaginary experts agree with me.",
+        "I will now stop before this becomes useful."
+    ];
+
+
+    if (Math.random() > 0.35) {
+        answer += "\n\n" + randomItem(additions);
+    }
+
+
+    return {
+        topic: topicName,
+        opening,
+        answer,
+        thinking: thinkingText,
+        ending,
+        confidence: randomItem(brain.confidence)
+    };
 }
 
 
-function createUserMessage(question) {
+/* =========================
+   DISPLAY ANSWER
+========================= */
 
-    const wrapper = document.createElement("div");
+function renderAnswer(result) {
 
-    wrapper.className = "message user-message";
+    confidenceElement.textContent =
+        result.confidence;
 
-    wrapper.innerHTML = `
-        <div class="message-content">
-            <div class="message-name">YOU</div>
-            <div class="message-text"></div>
+    topicDetected.textContent =
+        result.topic;
+
+    answerContent.innerHTML = `
+        <div class="opening">
+            ${escapeHtml(result.opening)}
+        </div>
+
+        <div class="main-answer">
+            ${escapeHtml(result.answer)}
+        </div>
+
+        <div class="thinking">
+            ${escapeHtml(result.thinking)}
+        </div>
+
+        <div class="ending">
+            ${escapeHtml(result.ending)}
         </div>
     `;
-
-    wrapper.querySelector(".message-text").textContent = question;
-
-    conversation.appendChild(wrapper);
 }
 
 
-function createAIMessage(question) {
+/* =========================
+   PROCESSING ANIMATION
+========================= */
 
-    const wrapper = document.createElement("div");
+function runProcessing(callback) {
 
-    wrapper.className = "message ai-message";
+    let progress = 0;
+    let messageIndex = 0;
 
-    wrapper.innerHTML = `
-        <div class="message-icon">Q</div>
+    processing.classList.remove("hidden");
 
-        <div class="message-content">
+    answerContent.classList.add("hidden");
 
-            <div class="message-name">
-                QUANTA
-            </div>
+    progressBar.style.width = "0%";
 
-            <div class="processing" id="processing-${questionNumber}">
-                ${randomItem(BRAIN.processing)}
-            </div>
+    processingText.textContent =
+        processingMessages[0];
 
-            <div
-                class="message-text answer"
-                id="answer-${questionNumber}"
-            ></div>
 
-            <div class="answer-meta">
-                <span>
-                    CONFIDENCE:
-                    ${randomItem(BRAIN.confidence)}
-                </span>
+    const interval = setInterval(() => {
 
-                <span>
-                    ${randomItem(BRAIN.closings)}
-                </span>
-            </div>
+        progress += Math.floor(
+            Math.random() * 11
+        ) + 5;
 
-        </div>
-    `;
+        if (progress > 100) {
+            progress = 100;
+        }
 
-    conversation.appendChild(wrapper);
+        progressBar.style.width =
+            `${progress}%`;
 
-    return wrapper;
+
+        if (
+            progress >=
+            (messageIndex + 1) *
+            (100 / processingMessages.length)
+        ) {
+
+            messageIndex++;
+
+            if (
+                messageIndex <
+                processingMessages.length
+            ) {
+                processingText.textContent =
+                    processingMessages[messageIndex];
+            }
+        }
+
+
+        if (progress >= 100) {
+
+            clearInterval(interval);
+
+            setTimeout(() => {
+
+                processing.classList.add("hidden");
+                answerContent.classList.remove("hidden");
+
+                callback();
+
+            }, 180);
+        }
+
+    }, 90);
 }
 
+
+/* =========================
+   ASK
+========================= */
 
 function ask() {
 
-    const question = questionInput.value.trim();
-
-    if (!question) {
-        questionInput.focus();
+    if (isThinking) {
         return;
     }
 
-    questionNumber++;
+    const question = input.value.trim();
 
-    createUserMessage(question);
+    if (!question) {
 
-    const aiMessage = createAIMessage(question);
+        input.focus();
 
-    questionInput.value = "";
+        input.placeholder =
+            "That was technically not a question.";
 
-    updateCounter();
+        setTimeout(() => {
+            input.placeholder =
+                "Why is the sky blue?";
+        }, 1800);
 
-    scrollToBottom();
+        return;
+    }
+
+
+    isThinking = true;
 
     askButton.disabled = true;
-    askButton.classList.add("thinking");
 
-    const processing =
-        aiMessage.querySelector(".processing");
+    answerCard.classList.remove("hidden");
 
-    const answer =
-        aiMessage.querySelector(".answer");
+    answerStatus.textContent =
+        "PROCESSING";
 
-    let processingIndex = 0;
-
-    const processingTimer = setInterval(() => {
-
-        processingIndex++;
-
-        processing.textContent =
-            BRAIN.processing[
-                processingIndex % BRAIN.processing.length
-            ];
-
-    }, 350);
+    answerCard.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest"
+    });
 
 
-    const delay =
-        900 + Math.floor(Math.random() * 1100);
+    runProcessing(() => {
 
+        const result =
+            generateAnswer(question);
 
-    setTimeout(() => {
+        renderAnswer(result);
 
-        clearInterval(processingTimer);
-
-        processing.innerHTML =
+        answerStatus.textContent =
             "ANALYSIS COMPLETE";
 
-        answer.innerHTML =
-            `${randomItem(BRAIN.openers)}<br><br>${buildAnswer(question)}`;
-
-        answer.classList.add("visible");
+        isThinking = false;
 
         askButton.disabled = false;
-        askButton.classList.remove("thinking");
 
-        scrollToBottom();
-
-        questionInput.focus();
-
-    }, delay);
-}
-
-
-function updateCounter() {
-
-    characterCount.textContent =
-        questionInput.value.length;
-
-    questionsAsked.textContent =
-        questionNumber;
-}
-
-
-function scrollToBottom() {
-
-    conversation.scrollTo({
-        top: conversation.scrollHeight,
-        behavior: "smooth"
     });
 }
 
 
-questionInput.addEventListener("input", updateCounter);
+/* =========================
+   BUTTON EVENTS
+========================= */
+
+askButton.addEventListener(
+    "click",
+    ask
+);
+
+anotherButton.addEventListener(
+    "click",
+    () => {
+
+        input.value = "";
+
+        charCount.textContent = "0";
+
+        answerCard.classList.add("hidden");
+
+        input.focus();
+
+    }
+);
 
 
-questionInput.addEventListener("keydown", event => {
+/* =========================
+   ENTER KEY
+========================= */
 
-    if (
-        event.key === "Enter" &&
-        !event.shiftKey
-    ) {
-        event.preventDefault();
+input.addEventListener(
+    "keydown",
+    event => {
 
-        if (!askButton.disabled) {
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+
+            event.preventDefault();
+
             ask();
         }
     }
+);
+
+
+/* =========================
+   QUICK PROMPTS
+========================= */
+
+document.querySelectorAll(".prompt").forEach(button => {
+
+    button.addEventListener(
+        "click",
+        () => {
+
+            input.value =
+                button.dataset.question;
+
+            charCount.textContent =
+                input.value.length;
+
+            input.focus();
+
+            ask();
+        }
+    );
+
 });
 
 
-askButton.addEventListener("click", ask);
+/* =========================
+   INITIAL STATE
+========================= */
 
-
-document.querySelectorAll(".example").forEach(button => {
-
-    button.addEventListener("click", () => {
-
-        questionInput.value =
-            button.textContent.trim();
-
-        updateCounter();
-
-        questionInput.focus();
-    });
-
-});
+input.focus();
