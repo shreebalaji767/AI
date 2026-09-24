@@ -1,498 +1,1093 @@
-"use strict";
+/* =========================================================
+   ANSWER MACHINE
+   Static browser-side answer engine
 
-const brain = window.BRAIN;
+   No server
+   No database
+   No LocalStorage
+   No API
+   ========================================================= */
 
-const input = document.getElementById("questionInput");
+
+/* =========================================================
+   ELEMENTS
+   ========================================================= */
+
+const questionInput = document.getElementById("question");
+const characterCount = document.getElementById("characterCount");
+
 const askButton = document.getElementById("askButton");
 const anotherButton = document.getElementById("anotherButton");
-const answerCard = document.getElementById("answerCard");
-const answerContent = document.getElementById("answerContent");
-const processing = document.getElementById("processing");
-const processingText = document.getElementById("processingText");
+
+const logoButton = document.getElementById("logoButton");
+
+const processingCard = document.getElementById("processingCard");
+const processingPercent = document.getElementById("processingPercent");
+const processingMessage = document.getElementById("processingMessage");
 const progressBar = document.getElementById("progressBar");
+
+const answerSection = document.getElementById("answerSection");
+const answerContent = document.getElementById("answerContent");
+
 const confidenceElement = document.getElementById("confidence");
-const topicDetected = document.getElementById("topicDetected");
-const answerStatus = document.getElementById("answerStatus");
-const charCount = document.getElementById("charCount");
+const topicElement = document.getElementById("topic");
+const answerTypeElement = document.getElementById("answerType");
 
-const processingMessages = [
-    "Analyzing question...",
-    "Checking available nonsense...",
-    "Consulting imaginary experts...",
-    "Ignoring common sense...",
-    "Performing unnecessary calculations...",
-    "Asking a pigeon for verification...",
-    "Constructing confident response...",
-    "Removing useful information...",
-    "Increasing confidence...",
-    "Finalizing questionable conclusion..."
-];
-
-let isThinking = false;
+const quickPrompts = document.querySelectorAll(".quick-prompt");
 
 
-/* =========================
-   BASIC UTILITIES
-========================= */
+/* =========================================================
+   STATE
+   ========================================================= */
+
+let processingTimer = null;
+let isProcessing = false;
+
+
+/* =========================================================
+   BRAIN
+   ========================================================= */
+
+const brain = window.BRAIN || {};
+
+
+/* =========================================================
+   FALLBACK DATA
+   ========================================================= */
+
+const fallbackBrain = {
+
+    openings: [
+        "After an extremely serious investigation, the answer is surprisingly simple.",
+        "This has been analyzed by several highly questionable experts.",
+        "The short answer is yes, although reality has made things unnecessarily complicated.",
+        "There is actually a perfectly logical explanation for this.",
+        "Scientists have spent years avoiding this exact question.",
+        "The answer begins with one important fact that nobody asked for.",
+        "This is easier to understand once you stop expecting the universe to make sense."
+    ],
+
+    endings: [
+        "So that is basically the situation.",
+        "And that is the scientifically convenient explanation.",
+        "In conclusion, everything is probably fine.",
+        "Therefore, the universe can continue operating normally.",
+        "That is the answer. Please use it responsibly.",
+        "And now you know something you cannot un-know.",
+        "Nobody needs to investigate this any further."
+    ],
+
+    thinking: [
+        "Thinking very hard...",
+        "Consulting the imaginary experts...",
+        "Looking for unnecessary evidence...",
+        "Calculating something that probably matters...",
+        "Checking the highly questionable database...",
+        "Asking the internal committee...",
+        "Making this sound more complicated than it is..."
+    ],
+
+    confidence: [
+        91,
+        94,
+        97,
+        99,
+        87,
+        96,
+        98
+    ],
+
+    fallback: [
+        "The available evidence strongly suggests that this is one of those situations where everyone pretends to understand what is happening.",
+        "There are several possible explanations, but the most convenient one is also the most entertaining.",
+        "Nobody has completely solved this problem yet, so the responsible approach is to sound extremely confident anyway.",
+        "This appears to be caused by a combination of physics, human decisions, and at least one unnecessary complication.",
+        "The answer depends on circumstances, timing, and how dramatically you describe the problem."
+    ],
+
+    topics: {},
+
+    questionTypes: {},
+
+    special: []
+
+};
+
+
+/* =========================================================
+   MERGE GENERATED BRAIN WITH FALLBACK
+   ========================================================= */
+
+const data = {
+
+    openings:
+        Array.isArray(brain.openings)
+            ? brain.openings
+            : fallbackBrain.openings,
+
+    endings:
+        Array.isArray(brain.endings)
+            ? brain.endings
+            : fallbackBrain.endings,
+
+    thinking:
+        Array.isArray(brain.thinking)
+            ? brain.thinking
+            : fallbackBrain.thinking,
+
+    confidence:
+        Array.isArray(brain.confidence)
+            ? brain.confidence
+            : fallbackBrain.confidence,
+
+    fallback:
+        Array.isArray(brain.fallback)
+            ? brain.fallback
+            : fallbackBrain.fallback,
+
+    topics:
+        brain.topics || fallbackBrain.topics,
+
+    questionTypes:
+        brain.questionTypes || fallbackBrain.questionTypes,
+
+    special:
+        Array.isArray(brain.special)
+            ? brain.special
+            : fallbackBrain.special
+
+};
+
+
+/* =========================================================
+   RANDOM HELPER
+   ========================================================= */
 
 function randomItem(array) {
-    return array[Math.floor(Math.random() * array.length)];
-}
 
-function normalize(text) {
-    return text
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}\s+]/gu, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-}
+    if (!Array.isArray(array) || array.length === 0) {
+        return "";
+    }
 
-function escapeHtml(text) {
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function containsPhrase(text, phrase) {
-    return text.includes(phrase);
+    return array[
+        Math.floor(Math.random() * array.length)
+    ];
 }
 
 
-/* =========================
-   CHARACTER COUNTER
-========================= */
+/* =========================================================
+   CLEAN TEXT
+   ========================================================= */
 
-input.addEventListener("input", () => {
-    charCount.textContent = input.value.length;
-});
+function cleanQuestion(question) {
 
+    return question
+        .trim()
+        .replace(/\s+/g, " ");
 
-/* =========================
-   QUESTION TYPE
-========================= */
-
-function detectQuestionType(question) {
-
-    const text = normalize(question);
-
-    if (
-        text.startsWith("why ") ||
-        text === "why" ||
-        text.includes(" why ")
-    ) {
-        return "why";
-    }
-
-    if (
-        text.startsWith("how ") ||
-        text === "how" ||
-        text.includes(" how ")
-    ) {
-        return "how";
-    }
-
-    if (
-        text.startsWith("what ") ||
-        text === "what" ||
-        text.includes(" what ")
-    ) {
-        return "what";
-    }
-
-    if (
-        text.startsWith("should ") ||
-        text.includes(" should ")
-    ) {
-        return "should";
-    }
-
-    if (
-        text.startsWith("can ") ||
-        text.startsWith("could ") ||
-        text.includes(" can i ") ||
-        text.includes(" can you ")
-    ) {
-        return "can";
-    }
-
-    return null;
 }
 
 
-/* =========================
+/* =========================================================
    TOPIC DETECTION
-========================= */
+   ========================================================= */
 
 function detectTopic(question) {
 
-    const text = normalize(question);
+    const text = question.toLowerCase();
 
-    let bestTopic = "general";
+    let bestTopic = "GENERAL";
     let bestScore = 0;
 
-    for (const [topicName, topic] of Object.entries(brain.topics)) {
+    const topicKeywords = {
+
+        PROGRAMMING: [
+            "code",
+            "coding",
+            "program",
+            "programming",
+            "python",
+            "javascript",
+            "html",
+            "css",
+            "java",
+            "c#",
+            "software",
+            "developer",
+            "website",
+            "bug",
+            "computer"
+        ],
+
+        MONEY: [
+            "money",
+            "cash",
+            "salary",
+            "income",
+            "rich",
+            "poor",
+            "bank",
+            "loan",
+            "investment",
+            "invest",
+            "price",
+            "cost",
+            "business"
+        ],
+
+        SLEEP: [
+            "sleep",
+            "tired",
+            "sleeping",
+            "insomnia",
+            "dream",
+            "nap",
+            "awake"
+        ],
+
+        FOOD: [
+            "food",
+            "eat",
+            "eating",
+            "pizza",
+            "burger",
+            "rice",
+            "bread",
+            "chicken",
+            "vegetable",
+            "fruit",
+            "hungry",
+            "cook"
+        ],
+
+        ANIMALS: [
+            "cat",
+            "cats",
+            "dog",
+            "dogs",
+            "animal",
+            "animals",
+            "bird",
+            "fish",
+            "lion",
+            "tiger",
+            "elephant",
+            "pet"
+        ],
+
+        TECHNOLOGY: [
+            "phone",
+            "mobile",
+            "internet",
+            "wifi",
+            "technology",
+            "tech",
+            "computer",
+            "laptop",
+            "ai",
+            "robot",
+            "screen",
+            "app"
+        ],
+
+        SCHOOL: [
+            "school",
+            "college",
+            "study",
+            "student",
+            "exam",
+            "math",
+            "mathematics",
+            "homework",
+            "teacher",
+            "education",
+            "learn"
+        ],
+
+        WEATHER: [
+            "weather",
+            "rain",
+            "rainy",
+            "sun",
+            "sunny",
+            "cloud",
+            "cloudy",
+            "temperature",
+            "hot",
+            "cold",
+            "storm",
+            "wind"
+        ],
+
+        RELATIONSHIPS: [
+            "love",
+            "relationship",
+            "girlfriend",
+            "boyfriend",
+            "husband",
+            "wife",
+            "friend",
+            "friendship",
+            "marriage",
+            "breakup",
+            "crush"
+        ],
+
+        PHILOSOPHY: [
+            "life",
+            "meaning",
+            "exist",
+            "existence",
+            "universe",
+            "god",
+            "purpose",
+            "reality",
+            "consciousness"
+        ],
+
+        HEALTH: [
+            "health",
+            "body",
+            "exercise",
+            "weight",
+            "headache",
+            "fever",
+            "pain",
+            "healthy",
+            "medicine"
+        ],
+
+        HISTORY: [
+            "history",
+            "war",
+            "king",
+            "queen",
+            "ancient",
+            "empire",
+            "historical",
+            "country",
+            "civilization"
+        ]
+
+    };
+
+
+    for (const topic in topicKeywords) {
 
         let score = 0;
 
-        for (const keyword of topic.keywords) {
+        for (const keyword of topicKeywords[topic]) {
 
-            const normalizedKeyword = normalize(keyword);
-
-            if (text.includes(normalizedKeyword)) {
-                score += normalizedKeyword.length > 5 ? 3 : 1;
+            if (text.includes(keyword)) {
+                score++;
             }
+
         }
 
         if (score > bestScore) {
+
             bestScore = score;
-            bestTopic = topicName;
+            bestTopic = topic;
+
         }
+
     }
 
+
     return bestTopic;
+
 }
 
 
-/* =========================
-   SPECIAL CASES
-========================= */
+/* =========================================================
+   QUESTION TYPE
+   ========================================================= */
 
-function checkSpecialCase(question) {
+function detectQuestionType(question) {
 
-    const normalized = normalize(question);
+    const text = question.toLowerCase().trim();
 
-    for (const [trigger, answers] of Object.entries(brain.special_cases)) {
+    if (/^why\b/.test(text)) {
+        return "WHY";
+    }
+
+    if (/^how\b/.test(text)) {
+        return "HOW";
+    }
+
+    if (/^what\b/.test(text)) {
+        return "WHAT";
+    }
+
+    if (/^when\b/.test(text)) {
+        return "WHEN";
+    }
+
+    if (/^where\b/.test(text)) {
+        return "WHERE";
+    }
+
+    if (/^who\b/.test(text)) {
+        return "WHO";
+    }
+
+    if (/^should\b/.test(text)) {
+        return "SHOULD";
+    }
+
+    if (/^can\b/.test(text)) {
+        return "CAN";
+    }
+
+    if (/^is\b/.test(text) || /^are\b/.test(text)) {
+        return "YES_NO";
+    }
+
+    return "GENERAL";
+
+}
+
+
+/* =========================================================
+   SPECIAL QUESTIONS
+   ========================================================= */
+
+function checkSpecialQuestion(question) {
+
+    const text = question.toLowerCase();
+
+    if (!Array.isArray(data.special)) {
+        return null;
+    }
+
+    for (const item of data.special) {
+
+        if (!item) {
+            continue;
+        }
+
+        const keywords = item.keywords || [];
 
         if (
-            normalized === normalize(trigger) ||
-            normalized.includes(normalize(trigger))
+            keywords.length &&
+            keywords.every(keyword =>
+                text.includes(String(keyword).toLowerCase())
+            )
         ) {
-            return randomItem(answers);
+
+            return item.answer || null;
+
         }
+
     }
 
     return null;
+
 }
 
 
-/* =========================
-   QUESTION-SPECIFIC OPENING
-========================= */
+/* =========================================================
+   TOPIC ANSWER
+   ========================================================= */
 
-function generateOpening(questionType) {
+function getTopicAnswer(topic, type) {
 
-    if (
-        questionType &&
-        brain.question_patterns[questionType]
-    ) {
-        return randomItem(
-            brain.question_patterns[questionType]
-        );
+    const topicData = data.topics?.[topic];
+
+    if (!topicData) {
+        return null;
     }
 
-    return randomItem(brain.openings);
+    if (
+        topicData[type] &&
+        Array.isArray(topicData[type])
+    ) {
+
+        return randomItem(topicData[type]);
+
+    }
+
+    if (
+        topicData.answers &&
+        Array.isArray(topicData.answers)
+    ) {
+
+        return randomItem(topicData.answers);
+
+    }
+
+    return null;
+
 }
 
 
-/* =========================
-   ANSWER GENERATOR
-========================= */
+/* =========================================================
+   QUESTION TYPE ANSWER
+   ========================================================= */
+
+function getQuestionTypeAnswer(type) {
+
+    const answers = data.questionTypes?.[type];
+
+    if (
+        Array.isArray(answers) &&
+        answers.length
+    ) {
+
+        return randomItem(answers);
+
+    }
+
+    return null;
+
+}
+
+
+/* =========================================================
+   GENERATE ANSWER
+   ========================================================= */
 
 function generateAnswer(question) {
 
-    const normalized = normalize(question);
+    const topic = detectTopic(question);
+    const type = detectQuestionType(question);
 
-    if (!normalized) {
-        return {
-            topic: "GENERAL",
-            opening: "INPUT REQUIRED.",
-            answer:
-                "You have successfully asked me absolutely nothing.\n\n" +
-                "This is impressive, but unfortunately difficult to answer.",
-            thinking:
-                "I searched the question for information and found an empty room.",
-            ending: "Please provide at least one word.",
-            confidence: "100%"
-        };
-    }
-
-
-    const special = checkSpecialCase(question);
+    const special = checkSpecialQuestion(question);
 
     if (special) {
 
         return {
-            topic: "SPECIAL",
-            opening: randomItem(brain.openings),
             answer: special,
-            thinking: randomItem(brain.thinking),
-            ending: randomItem(brain.endings),
-            confidence: randomItem(brain.confidence)
+            topic: topic,
+            type: type
         };
+
     }
 
 
-    const topic = detectTopic(question);
-    const questionType = detectQuestionType(question);
+    const topicAnswer = getTopicAnswer(
+        topic,
+        type
+    );
 
-    let answer;
+    const typeAnswer = getQuestionTypeAnswer(type);
 
-    if (
-        topic !== "general" &&
-        brain.topics[topic] &&
-        brain.topics[topic].answers.length > 0
-    ) {
+    const opening = randomItem(data.openings);
+    const ending = randomItem(data.endings);
 
-        answer = randomItem(
-            brain.topics[topic].answers
-        );
 
-    } else {
+    let middle = topicAnswer;
 
-        answer = randomItem(brain.fallbacks);
+    if (!middle) {
+        middle = typeAnswer;
+    }
+
+    if (!middle) {
+        middle = randomItem(data.fallback);
     }
 
 
-    const opening = generateOpening(questionType);
+    let answer = "";
 
-    const thinkingText = randomItem(brain.thinking);
-
-    const ending = randomItem(brain.endings);
-
-    let topicName = topic.toUpperCase();
-
-    if (topic === "general") {
-        topicName = "GENERAL";
+    if (opening) {
+        answer += opening + " ";
     }
 
+    answer += middle;
 
-    /*
-     * Occasionally add a question-specific
-     * absurd conclusion.
-     */
-
-    const additions = [
-        "This conclusion is supported by confidence.",
-        "I have decided this is probably correct.",
-        "The evidence is overwhelming if you don't inspect it.",
-        "Further investigation would only introduce facts.",
-        "I see no reason to complicate this with reality.",
-        "This is the answer I would give under oath.",
-        "Several imaginary experts agree with me.",
-        "I will now stop before this becomes useful."
-    ];
-
-
-    if (Math.random() > 0.35) {
-        answer += "\n\n" + randomItem(additions);
+    if (ending) {
+        answer += " " + ending;
     }
 
 
     return {
-        topic: topicName,
-        opening,
-        answer,
-        thinking: thinkingText,
-        ending,
-        confidence: randomItem(brain.confidence)
+        answer: answer,
+        topic: topic,
+        type: type
     };
+
 }
 
 
-/* =========================
-   DISPLAY ANSWER
-========================= */
+/* =========================================================
+   CONFIDENCE
+   ========================================================= */
 
-function renderAnswer(result) {
+function getConfidence() {
 
-    confidenceElement.textContent =
-        result.confidence;
+    return Number(
+        randomItem(data.confidence)
+    ) || 97;
 
-    topicDetected.textContent =
-        result.topic;
-
-    answerContent.innerHTML = `
-        <div class="opening">
-            ${escapeHtml(result.opening)}
-        </div>
-
-        <div class="main-answer">
-            ${escapeHtml(result.answer)}
-        </div>
-
-        <div class="thinking">
-            ${escapeHtml(result.thinking)}
-        </div>
-
-        <div class="ending">
-            ${escapeHtml(result.ending)}
-        </div>
-    `;
 }
 
 
-/* =========================
+/* =========================================================
+   CHARACTER COUNTER
+   ========================================================= */
+
+function updateCharacterCount() {
+
+    const length = questionInput.value.length;
+
+    characterCount.textContent =
+        `${length} / 500`;
+
+}
+
+
+/* =========================================================
+   SHOW / HIDE
+   ========================================================= */
+
+function show(element) {
+
+    element.classList.remove("hidden");
+
+}
+
+
+function hide(element) {
+
+    element.classList.add("hidden");
+
+}
+
+
+/* =========================================================
+   PROCESSING MESSAGE
+   ========================================================= */
+
+function getThinkingMessage() {
+
+    return randomItem(data.thinking)
+        || "Thinking very hard...";
+
+}
+
+
+/* =========================================================
    PROCESSING ANIMATION
-========================= */
+   ========================================================= */
 
-function runProcessing(callback) {
+function startProcessing(callback) {
+
+    if (isProcessing) {
+        return;
+    }
+
+    isProcessing = true;
+
+    hide(answerSection);
+    show(processingCard);
+
+    askButton.disabled = true;
+
+    const askText = askButton.querySelector(".ask-text");
+
+    if (askText) {
+        askText.textContent = "THINKING";
+    }
+
 
     let progress = 0;
-    let messageIndex = 0;
 
-    processing.classList.remove("hidden");
-
-    answerContent.classList.add("hidden");
-
+    processingPercent.textContent = "0%";
     progressBar.style.width = "0%";
 
-    processingText.textContent =
-        processingMessages[0];
+    processingMessage.textContent =
+        getThinkingMessage();
 
 
-    const interval = setInterval(() => {
+    clearInterval(processingTimer);
 
-        progress += Math.floor(
-            Math.random() * 11
-        ) + 5;
 
-        if (progress > 100) {
+    processingTimer = setInterval(() => {
+
+        const increment =
+            Math.floor(Math.random() * 12) + 5;
+
+        progress += increment;
+
+
+        if (progress >= 100) {
             progress = 100;
         }
+
+
+        processingPercent.textContent =
+            `${progress}%`;
 
         progressBar.style.width =
             `${progress}%`;
 
 
-        if (
-            progress >=
-            (messageIndex + 1) *
-            (100 / processingMessages.length)
-        ) {
+        if (progress > 25 && progress < 55) {
 
-            messageIndex++;
+            processingMessage.textContent =
+                getThinkingMessage();
 
-            if (
-                messageIndex <
-                processingMessages.length
-            ) {
-                processingText.textContent =
-                    processingMessages[messageIndex];
-            }
+        }
+
+        if (progress >= 55 && progress < 85) {
+
+            processingMessage.textContent =
+                "Cross-referencing absolutely nothing...";
+
+        }
+
+        if (progress >= 85 && progress < 100) {
+
+            processingMessage.textContent =
+                "Constructing confidence...";
+
         }
 
 
         if (progress >= 100) {
 
-            clearInterval(interval);
+            clearInterval(processingTimer);
 
             setTimeout(() => {
 
-                processing.classList.add("hidden");
-                answerContent.classList.remove("hidden");
+                finishProcessing(callback);
 
-                callback();
+            }, 250);
 
-            }, 180);
         }
 
-    }, 90);
+    }, 180);
+
 }
 
 
-/* =========================
-   ASK
-========================= */
+/* =========================================================
+   FINISH PROCESSING
+   ========================================================= */
 
-function ask() {
+function finishProcessing(callback) {
 
-    if (isThinking) {
+    isProcessing = false;
+
+    hide(processingCard);
+
+    askButton.disabled = false;
+
+    const askText = askButton.querySelector(".ask-text");
+
+    if (askText) {
+        askText.textContent = "ASK";
+    }
+
+    callback();
+
+}
+
+
+/* =========================================================
+   RENDER ANSWER
+   ========================================================= */
+
+function renderAnswer(result) {
+
+    answerContent.textContent =
+        result.answer;
+
+    topicElement.textContent =
+        result.topic;
+
+    answerTypeElement.textContent =
+        result.type;
+
+
+    const confidence =
+        getConfidence();
+
+    confidenceElement.textContent =
+        `CONFIDENCE: ${confidence}%`;
+
+
+    show(answerSection);
+
+
+    setTimeout(() => {
+
+        answerSection.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+
+    }, 50);
+
+}
+
+
+/* =========================================================
+   ASK QUESTION
+   ========================================================= */
+
+function askQuestion() {
+
+    if (isProcessing) {
         return;
     }
 
-    const question = input.value.trim();
+
+    const question =
+        cleanQuestion(questionInput.value);
+
 
     if (!question) {
 
-        input.focus();
+        questionInput.focus();
 
-        input.placeholder =
-            "That was technically not a question.";
+        questionInput.classList.add(
+            "input-error"
+        );
+
 
         setTimeout(() => {
-            input.placeholder =
-                "Why is the sky blue?";
-        }, 1800);
+
+            questionInput.classList.remove(
+                "input-error"
+            );
+
+        }, 500);
 
         return;
     }
 
 
-    isThinking = true;
-
-    askButton.disabled = true;
-
-    answerCard.classList.remove("hidden");
-
-    answerStatus.textContent =
-        "PROCESSING";
-
-    answerCard.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest"
-    });
+    const result =
+        generateAnswer(question);
 
 
-    runProcessing(() => {
-
-        const result =
-            generateAnswer(question);
+    startProcessing(() => {
 
         renderAnswer(result);
 
-        answerStatus.textContent =
-            "ANALYSIS COMPLETE";
-
-        isThinking = false;
-
-        askButton.disabled = false;
-
     });
+
 }
 
 
-/* =========================
-   BUTTON EVENTS
-========================= */
+/* =========================================================
+   RESET EVERYTHING
+   ========================================================= */
+
+function resetApplication() {
+
+    /*
+       Cancel any active processing animation.
+    */
+
+    clearInterval(processingTimer);
+
+    processingTimer = null;
+
+    isProcessing = false;
+
+
+    /*
+       Reset input.
+    */
+
+    questionInput.value = "";
+
+    updateCharacterCount();
+
+
+    /*
+       Reset answer.
+    */
+
+    answerContent.textContent = "";
+
+    topicElement.textContent =
+        "GENERAL";
+
+    answerTypeElement.textContent =
+        "ANALYSIS";
+
+    confidenceElement.textContent =
+        "CONFIDENCE: 99%";
+
+
+    /*
+       Reset processing UI.
+    */
+
+    processingPercent.textContent =
+        "0%";
+
+    progressBar.style.width =
+        "0%";
+
+    processingMessage.textContent =
+        "Thinking very hard...";
+
+
+    /*
+       Hide answer and processing.
+    */
+
+    hide(answerSection);
+
+    hide(processingCard);
+
+
+    /*
+       Reset ASK button.
+    */
+
+    askButton.disabled = false;
+
+    const askText =
+        askButton.querySelector(".ask-text");
+
+    if (askText) {
+        askText.textContent = "ASK";
+    }
+
+
+    /*
+       Remove temporary states.
+    */
+
+    questionInput.classList.remove(
+        "input-error"
+    );
+
+
+    /*
+       Return to the top without reloading.
+    */
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+
+    /*
+       Put cursor back in the question box.
+    */
+
+    setTimeout(() => {
+
+        questionInput.focus();
+
+    }, 350);
+
+}
+
+
+/* =========================================================
+   LOGO RESET
+   ========================================================= */
+
+if (logoButton) {
+
+    logoButton.addEventListener(
+        "click",
+        resetApplication
+    );
+
+}
+
+
+/* =========================================================
+   CHARACTER COUNTER EVENT
+   ========================================================= */
+
+questionInput.addEventListener(
+    "input",
+    updateCharacterCount
+);
+
+
+/* =========================================================
+   ASK BUTTON EVENT
+   ========================================================= */
 
 askButton.addEventListener(
     "click",
-    ask
+    askQuestion
 );
+
+
+/* =========================================================
+   ASK ANOTHER EVENT
+   ========================================================= */
 
 anotherButton.addEventListener(
     "click",
     () => {
 
-        input.value = "";
+        hide(answerSection);
 
-        charCount.textContent = "0";
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
 
-        answerCard.classList.add("hidden");
+        setTimeout(() => {
 
-        input.focus();
+            questionInput.focus();
+
+        }, 350);
 
     }
 );
 
 
-/* =========================
-   ENTER KEY
-========================= */
+/* =========================================================
+   QUICK PROMPTS
+   ========================================================= */
 
-input.addEventListener(
+quickPrompts.forEach(button => {
+
+    button.addEventListener(
+        "click",
+        () => {
+
+            const question =
+                button.dataset.question || "";
+
+            questionInput.value =
+                question;
+
+            updateCharacterCount();
+
+            questionInput.focus();
+
+            /*
+               Move cursor to the end.
+            */
+
+            questionInput.setSelectionRange(
+                question.length,
+                question.length
+            );
+
+        }
+    );
+
+});
+
+
+/* =========================================================
+   ENTER KEY
+   ========================================================= */
+
+questionInput.addEventListener(
     "keydown",
     event => {
+
+        /*
+           Enter = Ask
+           Shift + Enter = New line
+        */
 
         if (
             event.key === "Enter" &&
@@ -501,39 +1096,23 @@ input.addEventListener(
 
             event.preventDefault();
 
-            ask();
+            askQuestion();
+
         }
+
     }
 );
 
 
-/* =========================
-   QUICK PROMPTS
-========================= */
-
-document.querySelectorAll(".prompt").forEach(button => {
-
-    button.addEventListener(
-        "click",
-        () => {
-
-            input.value =
-                button.dataset.question;
-
-            charCount.textContent =
-                input.value.length;
-
-            input.focus();
-
-            ask();
-        }
-    );
-
-});
-
-
-/* =========================
+/* =========================================================
    INITIAL STATE
-========================= */
+   ========================================================= */
 
-input.focus();
+updateCharacterCount();
+
+hide(answerSection);
+hide(processingCard);
+
+console.log(
+    "ANSWER MACHINE initialized."
+);
