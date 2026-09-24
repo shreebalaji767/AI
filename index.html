@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>QUANTA — Answers With Unnecessary Confidence</title>
+
+    <meta
+        name="description"
+        content="Ask anything. Receive an unnecessarily confident answer."
+    >
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+    <header class="topbar">
+
+        <div class="brand">
+            <div class="logo">Q</div>
+
+            <div>
+                <div class="brand-name">QUANTA</div>
+                <div class="brand-subtitle">
+                    Advanced Question Processing
+                </div>
+            </div>
+        </div>
+
+        <div class="status">
+            <span class="status-dot"></span>
+            SYSTEM OPERATIONAL
+        </div>
+
+    </header>
+
+
+    <main class="main">
+
+        <section class="hero">
+
+            <div class="eyebrow">
+                ARTIFICIAL INTELLIGENCE • PROBABLY
+            </div>
+
+            <h1>
+                Ask anything.
+                <br>
+                <span>Regret nothing.</span>
+            </h1>
+
+            <p class="hero-text">
+                A highly sophisticated question-answering system
+                with absolutely no obligation to be useful.
+            </p>
+
+        </section>
+
+
+        <section class="terminal">
+
+            <div class="terminal-header">
+
+                <div class="terminal-title">
+                    <span class="pulse"></span>
+                    QUANTA CORE
+                </div>
+
+                <div class="terminal-meta">
+                    ONLINE
+                </div>
+
+            </div>
+
+
+            <div class="conversation" id="conversation">
+
+                <div class="welcome">
+
+                    <div class="welcome-icon">
+                        Q
+                    </div>
+
+                    <div class="message-content">
+
+                        <div class="message-name">
+                            QUANTA
+                        </div>
+
+                        <div class="message-text">
+                            Hello, human.
+                            <br><br>
+                            Ask me anything.
+                            Mathematics, science, relationships,
+                            programming, philosophy, life decisions,
+                            or something you typed at 3 AM.
+                            <br><br>
+                            I have answers.
+                            Whether they should be trusted is a separate question.
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="input-area">
+
+                <textarea
+                    id="question"
+                    rows="1"
+                    maxlength="1000"
+                    placeholder="Ask something..."
+                    autocomplete="off"
+                    spellcheck="false"
+                ></textarea>
+
+                <button id="askButton">
+                    <span>ASK</span>
+                    <span class="arrow">→</span>
+                </button>
+
+            </div>
+
+            <div class="input-footer">
+
+                <span>
+                    <span id="characterCount">0</span>/1000
+                </span>
+
+                <span>
+                    ENTER = ASK
+                </span>
+
+            </div>
+
+        </section>
+
+
+        <section class="stats">
+
+            <div class="stat">
+                <strong id="questionsAsked">0</strong>
+                <span>QUESTIONS PROCESSED</span>
+            </div>
+
+            <div class="stat">
+                <strong>100%</strong>
+                <span>CONFIDENCE</span>
+            </div>
+
+            <div class="stat">
+                <strong>0%</strong>
+                <span>GUARANTEED ACCURACY</span>
+            </div>
+
+        </section>
+
+
+        <section class="examples">
+
+            <div class="section-label">
+                TRY ASKING
+            </div>
+
+            <div class="example-grid">
+
+                <button class="example">
+                    Why is the sky blue?
+                </button>
+
+                <button class="example">
+                    How do I become rich?
+                </button>
+
+                <button class="example">
+                    Should I learn programming?
+                </button>
+
+                <button class="example">
+                    What is love?
+                </button>
+
+                <button class="example">
+                    Why am I tired?
+                </button>
+
+                <button class="example">
+                    What is the meaning of life?
+                </button>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <footer>
+
+        <div>
+            QUANTA ENGINE
+        </div>
+
+        <div>
+            BUILT WITH QUESTIONABLE TECHNOLOGY
+        </div>
+
+    </footer>
+
+</div>
+
+
+<script src="data/brain.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
