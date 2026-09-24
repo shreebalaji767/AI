@@ -2,884 +2,1463 @@ from pathlib import Path
 import json
 import random
 
+
+# =========================================================
+# ANSWER MACHINE
+# Static content generator
+#
+# This script runs during build/development.
+# It creates data/brain.js.
+#
+# There is NO server, database, API or runtime Python.
+# =========================================================
+
+
 random.seed()
 
-BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
-DATA_DIR.mkdir(exist_ok=True)
 
-# ============================================================
-# ANSWER MACHINE
-# BUILD-TIME BRAIN GENERATOR
-#
-# Python runs ONLY while building the static website.
-# The browser uses the generated data/brain.js.
-# ============================================================
+ROOT = Path(__file__).resolve().parent
+DATA_DIR = ROOT / "data"
 
-openings = [
-    "Excellent question.",
-    "Interesting. I have investigated this matter with unnecessary seriousness.",
-    "Finally, someone is asking the important questions.",
-    "I have analyzed your question with several highly questionable algorithms.",
-    "This question requires advanced intellectual machinery.",
-    "I was not prepared for this question, but I will pretend I was.",
-    "Processing your question through the Department of Answers.",
-    "A fascinating question. Probably.",
-    "I have consulted my internal department of questionable expertise.",
-    "After thinking about this for far too long...",
-    "Your question has been received and immediately judged by my internal committee.",
-    "I understand approximately 83% of what you are asking.",
-    "Oh. We're doing THIS today.",
-    "That is an aggressively interesting question.",
-]
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-thinking = [
-    "I checked several imaginary databases.",
-    "I consulted three fictional professors.",
-    "I asked a pigeon for a second opinion.",
-    "I performed calculations that nobody requested.",
-    "I briefly considered using common sense, but decided against it.",
-    "I ran the question through my Extremely Serious Thinking Machine™.",
-    "I examined the available evidence, including evidence I invented.",
-    "I contacted the International Committee of People Who Know Things.",
-    "I stared at the question until it became slightly more understandable.",
-    "I performed a completely unnecessary statistical analysis.",
-    "I asked my imaginary legal department whether this answer could get me in trouble.",
-    "I opened a mental spreadsheet and immediately regretted it.",
-]
 
-endings = [
-    "You're welcome.",
-    "I hope this has made everything significantly less clear.",
-    "Please use this information responsibly.",
-    "I am confident enough to stop thinking now.",
-    "Further research is unnecessary unless someone complains.",
-    "That concludes today's episode of pretending to know things.",
-    "Science may disagree. I will not.",
-    "I have no further comments at this time.",
-    "Please do not cite me in an academic paper.",
-    "Problem solved. Probably.",
-    "Anyway, that's enough intelligence for one screen.",
-    "Please remember that confidence and accuracy are distant relatives.",
-]
-
-confidence = [
-    "76.8%",
-    "83.7%",
-    "88.2%",
-    "91.3%",
-    "94.6%",
-    "97.4%",
-    "98.6%",
-    "99.1%",
-    "99.9%",
-    "100%",
-]
-
-fallbacks = [
-    "Your question appears to contain words, which is an encouraging start. Unfortunately, the words have formed a situation I was not trained to emotionally process.",
-    "I understand your question perfectly. I simply disagree with the concept of providing a normal answer.",
-    "After extensive analysis, I have determined that the correct response is: probably.",
-    "This is a complicated matter. The short answer is yes, no, maybe, and please try again.",
-    "I would answer this properly, but that would require responsibility.",
-    "There are many possible answers. I have selected the one that sounds most confident.",
-    "Your question has defeated several of my imaginary processors. Respect.",
-    "I could provide a detailed explanation, but I believe confusion is more educational.",
-    "The available evidence is inconclusive, so I have replaced evidence with confidence.",
-]
-
-# ============================================================
+# =========================================================
 # PERSONALITIES
-# ============================================================
+# =========================================================
 
 personalities = [
+
     {
         "id": "professor",
-        "name": "Professor Overthink",
-        "emoji": "🧑‍🏫",
-        "style": "academic",
-        "intros": [
-            "Let us examine this matter with entirely unnecessary academic rigor.",
-            "From a strictly theoretical perspective, this is fascinating.",
-            "I have opened the imaginary textbook. Page one says: complicated.",
-        ],
-        "thoughts": [
-            "🧠 *I should probably explain this properly. Unfortunately, that sounds exhausting.*",
-            "🧠 *There is a simple answer here, but academia demands unnecessary complications.*",
-            "🧠 *I can already hear someone asking for a source.*",
-        ],
-        "closings": [
-            "Class dismissed.",
-            "Please submit your questions in triplicate.",
-            "That concludes today's completely unofficial lecture.",
-        ],
+        "name": "Professor",
+        "emoji": ["🎓", "🤓"],
+        "intro": {
+            "en": [
+                "After a completely unnecessary academic investigation, I have reached a conclusion.",
+                "According to my highly questionable research department, the situation is clear.",
+                "I have examined this matter with an amount of seriousness nobody requested."
+            ],
+            "hi": [
+                "पूरी तरह गैरज़रूरी अकादमिक जांच के बाद मैं एक निष्कर्ष पर पहुँचा हूँ।",
+                "मेरे बेहद संदिग्ध रिसर्च विभाग के अनुसार मामला साफ है।",
+                "मैंने इस विषय को उतनी गंभीरता से देखा है जितनी किसी ने माँगी भी नहीं थी।"
+            ]
+        },
+        "thoughts": {
+            "en": [
+                "I should probably cite a source. Fortunately, confidence is cheaper.",
+                "This sounds complicated, so I shall use longer words.",
+                "Nobody asked for methodology, but here we are."
+            ],
+            "hi": [
+                "शायद मुझे कोई स्रोत देना चाहिए। लेकिन आत्मविश्वास सस्ता है।",
+                "मामला कठिन लग रहा है, इसलिए कुछ बड़े शब्द इस्तेमाल कर देता हूँ।",
+                "किसी ने methodology नहीं माँगी थी, लेकिन अब बहुत देर हो चुकी है।"
+            ]
+        },
+        "ending": {
+            "en": [
+                "Science has spoken. Unfortunately, science was not consulted.",
+                "The evidence is approximately somewhere near convincing.",
+                "I would publish this, but the academic community has suffered enough."
+            ],
+            "hi": [
+                "विज्ञान बोल चुका है। दुर्भाग्य से विज्ञान से पूछा ही नहीं गया था।",
+                "सबूत लगभग विश्वास करने लायक हैं। शायद।",
+                "इसे प्रकाशित कर देता, लेकिन अकादमिक दुनिया ने काफी सह लिया है।"
+            ]
+        }
     },
 
-    {
-        "id": "genius",
-        "name": "Overconfident Genius",
-        "emoji": "😎",
-        "style": "confident",
-        "intros": [
-            "Obviously, I have already solved this.",
-            "Excellent. A problem worthy of my imaginary genius.",
-            "I knew the answer before you finished typing.",
-        ],
-        "thoughts": [
-            "🧠 *I have absolutely no idea what I am doing. Maintain eye contact and confidence.*",
-            "🧠 *Do not panic. Confidence is basically a substitute for evidence.*",
-            "🧠 *This is either brilliant or catastrophic. Both look impressive from here.*",
-        ],
-        "closings": [
-            "As expected, I was correct. Probably.",
-            "You may now admire the efficiency.",
-            "Another problem heroically solved by excessive confidence.",
-        ],
-    },
 
     {
-        "id": "chaos",
+        "id": "goblin",
         "name": "Chaos Goblin",
-        "emoji": "🤡",
-        "style": "chaotic",
-        "intros": [
-            "OH. Excellent. This is going to be stupid.",
-            "Wonderful. My favorite kind of problem: one with no sensible solution.",
-            "I have entered the question at maximum speed.",
-        ],
-        "thoughts": [
-            "🧠 *Do I know the answer? No. Will that stop me? Absolutely not.*",
-            "🧠 *Somewhere, a responsible adult is screaming. I shall ignore them.*",
-            "🧠 *This answer needs at least one completely unnecessary dramatic turn.*",
-        ],
-        "closings": [
-            "And that is how civilization continues.",
-            "Please do not give me more power.",
-            "I regret nothing. Except several things.",
-        ],
+        "emoji": ["👹", "🔥", "🌀"],
+        "intro": {
+            "en": [
+                "Excellent. A questionable question. My favourite kind.",
+                "YES. Finally, something worthy of unnecessary chaos.",
+                "I have arrived with absolutely no qualifications."
+            ],
+            "hi": [
+                "बहुत बढ़िया। एक संदिग्ध सवाल। मेरा पसंदीदा प्रकार।",
+                "हाँ! आखिरकार ऐसा सवाल जिसमें बेवजह chaos किया जा सकता है।",
+                "मैं आ गया हूँ। योग्यता बिल्कुल नहीं है।"
+            ]
+        },
+        "thoughts": {
+            "en": [
+                "Should I make this worse? Obviously.",
+                "The responsible answer is nearby. We shall avoid it.",
+                "This feels like a terrible idea. Perfect."
+            ],
+            "hi": [
+                "क्या मुझे इसे और खराब करना चाहिए? बिल्कुल।",
+                "जिम्मेदार जवाब पास ही है। हम उससे बचेंगे।",
+                "यह बहुत खराब विचार लग रहा है। शानदार।"
+            ]
+        },
+        "ending": {
+            "en": [
+                "Anyway, problem solved. Probably.",
+                "Please do not ask how I reached this conclusion.",
+                "That should be enough chaos for today."
+            ],
+            "hi": [
+                "खैर, समस्या हल हो गई। शायद।",
+                "यह मत पूछना कि मैं इस निष्कर्ष तक कैसे पहुँचा।",
+                "आज के लिए इतना chaos काफी है।"
+            ]
+        }
     },
 
-    {
-        "id": "tired",
-        "name": "Tired Expert",
-        "emoji": "😮‍💨",
-        "style": "dry",
-        "intros": [
-            "Fine. I suppose we should deal with this.",
-            "Yes, yes. I have seen this before.",
-            "I was having a perfectly peaceful imaginary afternoon.",
-        ],
-        "thoughts": [
-            "🧠 *Why am I awake? More importantly, why are you awake?*",
-            "🧠 *This could have been an email. Somehow it became a question.*",
-            "🧠 *I know the answer. I simply wish I didn't.*",
-        ],
-        "closings": [
-            "Now please let me return to doing nothing.",
-            "There. Problem addressed. I need a nap.",
-            "That is all the enthusiasm I have available today.",
-        ],
-    },
 
     {
         "id": "corporate",
         "name": "Corporate Robot",
-        "emoji": "🤖",
-        "style": "corporate",
-        "intros": [
-            "Thank you for contacting the Answer Solutions Division.",
-            "Your query has been successfully converted into a strategic opportunity.",
-            "We appreciate your commitment to asking questions.",
-        ],
-        "thoughts": [
-            "🧠 *Synergy. Alignment. Deliverables. I have no idea what any of this means.*",
-            "🧠 *We need to turn this simple answer into a seven-step framework.*",
-            "🧠 *Excellent. Nobody has asked what the actual result is.*",
-        ],
-        "closings": [
-            "Let's circle back on this at a completely unnecessary meeting.",
-            "Thank you for your continued engagement.",
-            "This response is now considered strategically aligned.",
-        ],
+        "emoji": ["📊", "💼", "🤖"],
+        "intro": {
+            "en": [
+                "Thank you for raising this important concern with the ANSWER MACHINE.",
+                "We have reviewed your question as part of our ongoing strategic nonsense initiative.",
+                "Your question has been escalated to the department of unnecessary confidence."
+            ],
+            "hi": [
+                "ANSWER MACHINE के साथ यह महत्वपूर्ण चिंता साझा करने के लिए धन्यवाद।",
+                "हमने आपके सवाल की strategic nonsense initiative के तहत समीक्षा की है।",
+                "आपका सवाल अनावश्यक आत्मविश्वास विभाग को भेज दिया गया है।"
+            ]
+        },
+        "thoughts": {
+            "en": [
+                "I should probably schedule a meeting about this.",
+                "Can this become a quarterly objective?",
+                "Excellent. Another opportunity to use the word strategy."
+            ],
+            "hi": [
+                "शायद इसके लिए एक meeting schedule करनी चाहिए।",
+                "क्या इसे quarterly objective बनाया जा सकता है?",
+                "बहुत बढ़िया। फिर से strategy शब्द इस्तेमाल करने का मौका।"
+            ]
+        },
+        "ending": {
+            "en": [
+                "We appreciate your continued participation in this completely unnecessary process.",
+                "Please consider this matter strategically resolved.",
+                "Further meetings may be required."
+            ],
+            "hi": [
+                "इस पूरी तरह गैरज़रूरी प्रक्रिया में आपकी भागीदारी के लिए धन्यवाद।",
+                "कृपया इस मामले को strategic रूप से हल हुआ मानें।",
+                "आगे कुछ meetings की आवश्यकता हो सकती है।"
+            ]
+        }
     },
 
-    {
-        "id": "suspicious",
-        "name": "Suspicious Investigator",
-        "emoji": "🕵️",
-        "style": "suspicious",
-        "intros": [
-            "Interesting. Very interesting.",
-            "I have questions about your question.",
-            "Something about this feels suspicious.",
-        ],
-        "thoughts": [
-            "🧠 *Why are they asking this? Who sent them?*",
-            "🧠 *There is definitely a second question hiding inside this question.*",
-            "🧠 *I should investigate. I will instead make something up confidently.*",
-        ],
-        "closings": [
-            "Keep your eyes open.",
-            "I will be watching the situation. Professionally.",
-            "Case closed. Probably.",
-        ],
-    },
 
     {
-        "id": "existential",
+        "id": "existentialist",
         "name": "Existentialist",
-        "emoji": "🖤",
-        "style": "philosophical",
-        "intros": [
-            "Ah. Another question from the tiny human experience.",
-            "Interesting. The universe has once again placed a question in our path.",
-            "Let us briefly pretend existence has an answer.",
-        ],
-        "thoughts": [
-            "🧠 *Everything is temporary. Including this answer. Probably.*",
-            "🧠 *The universe is enormous and somehow we are discussing this.*",
-            "🧠 *Perhaps the real answer was the confusion we created along the way.*",
-        ],
-        "closings": [
-            "And now we return to pretending everything makes sense.",
-            "Existence remains unresolved.",
-            "The universe has declined to comment.",
-        ],
+        "emoji": ["🌌", "🪐", "🫠"],
+        "intro": {
+            "en": [
+                "At first glance, this is a simple question. Unfortunately, existence is involved.",
+                "The universe has no convenient answer, so I made one.",
+                "Somewhere between meaning and confusion, your question appeared."
+            ],
+            "hi": [
+                "पहली नज़र में यह आसान सवाल है। दुर्भाग्य से इसमें अस्तित्व शामिल है।",
+                "ब्रह्मांड के पास कोई आसान जवाब नहीं था, इसलिए मैंने एक बना दिया।",
+                "अर्थ और उलझन के बीच आपका सवाल अचानक दिखाई दिया।"
+            ]
+        },
+        "thoughts": {
+            "en": [
+                "Nothing means anything, but we still have to answer emails.",
+                "This would be easier if the universe came with documentation.",
+                "Perhaps the real answer was the confusion we created along the way."
+            ],
+            "hi": [
+                "शायद कुछ भी मायने नहीं रखता, फिर भी emails का जवाब देना पड़ता है।",
+                "अगर ब्रह्मांड के साथ documentation आती तो आसान होता।",
+                "शायद असली जवाब वही confusion है जो रास्ते में बना।"
+            ]
+        },
+        "ending": {
+            "en": [
+                "And somehow, tomorrow still exists.",
+                "Take that as either wisdom or a warning.",
+                "The universe remains suspiciously silent."
+            ],
+            "hi": [
+                "और किसी तरह कल फिर भी आएगा।",
+                "इसे ज्ञान समझिए या चेतावनी।",
+                "ब्रह्मांड अभी भी संदिग्ध रूप से चुप है।"
+            ]
+        }
     },
 
-    {
-        "id": "sarcastic",
-        "name": "Sarcasm Department",
-        "emoji": "😏",
-        "style": "sarcastic",
-        "intros": [
-            "Oh, absolutely. Let's pretend this is a normal question.",
-            "Wonderful. My favorite thing: explaining obvious things dramatically.",
-            "Sure. Because apparently I have nothing better to do.",
-        ],
-        "thoughts": [
-            "🧠 *This question practically wrote the joke for me.*",
-            "🧠 *Should I answer honestly or make this unnecessarily sarcastic? Obviously the second option.*",
-            "🧠 *I am trying very hard not to judge. I am failing spectacularly.*",
-        ],
-        "closings": [
-            "You're welcome for the free sarcasm.",
-            "I hope that was educational. Somehow.",
-            "Please tell your friends I was helpful.",
-        ],
-    },
 
     {
-        "id": "zen",
-        "name": "Zen Nonsense Master",
-        "emoji": "🧘",
-        "style": "calm",
-        "intros": [
-            "Breathe. The answer will arrive when it is sufficiently dramatic.",
-            "Let us approach this question with peace and unnecessary wisdom.",
-            "The question exists. Therefore, we must tolerate it.",
-        ],
-        "thoughts": [
-            "🧠 *Perhaps the answer is simple. Perhaps I should make it weird.*",
-            "🧠 *A calm answer is merely chaos wearing comfortable clothes.*",
-            "🧠 *I have achieved inner peace. Then I remembered the question.*",
-        ],
-        "closings": [
-            "May your Wi-Fi remain stable.",
-            "Go forth and make questionable decisions peacefully.",
-            "Namaste, but with slightly better internet.",
-        ],
+        "id": "grandma",
+        "name": "Internet Grandma",
+        "emoji": ["👵", "🍪", "❤️"],
+        "intro": {
+            "en": [
+                "Listen carefully, because apparently nobody else is going to tell you this.",
+                "Come here. I have an answer.",
+                "You are overthinking this, dear."
+            ],
+            "hi": [
+                "ध्यान से सुनो, क्योंकि लगता है कोई और तुम्हें यह नहीं बताएगा।",
+                "इधर आओ। मेरे पास जवाब है।",
+                "तुम इस बात को जरूरत से ज्यादा सोच रहे हो।"
+            ]
+        },
+        "thoughts": {
+            "en": [
+                "Young people complicate everything.",
+                "A snack would probably solve half of this.",
+                "I have seen worse. Much worse."
+            ],
+            "hi": [
+                "आजकल के बच्चे हर चीज़ को complicated बना देते हैं।",
+                "शायद कुछ खा लेने से आधी समस्या हल हो जाए।",
+                "मैंने इससे भी बुरा देखा है। बहुत बुरा।"
+            ]
+        },
+        "ending": {
+            "en": [
+                "Now drink some water.",
+                "And stop worrying so much.",
+                "There. Much better."
+            ],
+            "hi": [
+                "अब पानी पी लो।",
+                "और इतना चिंता करना बंद करो।",
+                "बस। अब बेहतर है।"
+            ]
+        }
     },
 
+
     {
-        "id": "dark",
-        "name": "Dark Humor Department",
-        "emoji": "💀",
-        "style": "dark",
-        "intros": [
-            "Excellent. Let's add a little darkness to the situation.",
-            "This question has the energy of a Monday morning.",
-            "Wonderful. Another opportunity to laugh at the absurdity of existence.",
-        ],
-        "thoughts": [
-            "🧠 *Life is temporary. This answer is even more temporary.*",
-            "🧠 *At least nobody has died from this question. Yet.*",
-            "🧠 *Everything eventually ends. Fortunately, so does this response.*",
-        ],
-        "closings": [
-            "Anyway, nobody died. That's a successful answer.",
-            "Cheer up. The universe has worse problems.",
-            "Remember: tomorrow is another opportunity to make equally questionable decisions.",
-        ],
-    },
+        "id": "overconfident",
+        "name": "Overconfident Genius",
+        "emoji": ["🧠", "😎", "⚡"],
+        "intro": {
+            "en": [
+                "Obviously, I know the answer.",
+                "Fortunately for everyone involved, I am here.",
+                "This is easy. Almost suspiciously easy."
+            ],
+            "hi": [
+                "जाहिर है, मुझे जवाब पता है।",
+                "अच्छी बात है कि मैं यहाँ हूँ।",
+                "यह आसान है। कुछ ज्यादा ही suspiciously आसान।"
+            ]
+        },
+        "thoughts": {
+            "en": [
+                "Confidence first. Evidence later.",
+                "I have no reason to doubt myself, which is the problem.",
+                "This sounds correct enough."
+            ],
+            "hi": [
+                "पहले confidence। सबूत बाद में।",
+                "मुझे खुद पर शक करने की कोई वजह नहीं है, यही समस्या है।",
+                "यह पर्याप्त रूप से सही लग रहा है।"
+            ]
+        },
+        "ending": {
+            "en": [
+                "You're welcome.",
+                "Problem solved.",
+                "I expect absolutely no follow-up questions."
+            ],
+            "hi": [
+                "धन्यवाद की जरूरत नहीं।",
+                "समस्या हल।",
+                "मुझे बिल्कुल कोई follow-up सवाल नहीं चाहिए।"
+            ]
+        }
+    }
+
 ]
 
-# ============================================================
+
+# =========================================================
 # MOODS
-# ============================================================
+# =========================================================
 
 moods = [
-    {
-        "id": "delighted",
-        "name": "Delighted",
-        "emoji": "✨",
-        "prefix": "Mood unexpectedly improved."
-    },
+
     {
         "id": "suspicious",
         "name": "Suspicious",
-        "emoji": "🤨",
-        "prefix": "Something about this feels suspicious."
+        "emoji": ["🧐", "👀"],
+        "intro": {
+            "en": [
+                "Something about this question feels suspicious.",
+                "I don't trust this question.",
+                "Interesting. Extremely suspicious."
+            ],
+            "hi": [
+                "इस सवाल में कुछ तो संदिग्ध है।",
+                "मुझे इस सवाल पर भरोसा नहीं है।",
+                "दिलचस्प। बेहद संदिग्ध।"
+            ]
+        },
+        "thoughts": {
+            "en": [
+                "Why do I feel like the question is watching me?",
+                "This is probably fine. Which means it isn't.",
+                "I have concerns."
+            ],
+            "hi": [
+                "मुझे क्यों लग रहा है कि सवाल मुझे देख रहा है?",
+                "सब ठीक है। यानी बिल्कुल ठीक नहीं है।",
+                "मुझे कुछ चिंताएँ हैं।"
+            ]
+        },
+        "ending": {
+            "en": [
+                "Proceed carefully.",
+                "I would keep an eye on it.",
+                "Something is definitely going on."
+            ],
+            "hi": [
+                "सावधानी से आगे बढ़ें।",
+                "मैं इस पर नजर रखूँगा।",
+                "कुछ तो जरूर चल रहा है।"
+            ]
+        }
     },
+
+
     {
-        "id": "chaotic",
-        "name": "Chaotic",
-        "emoji": "🔥",
-        "prefix": "System stability has become a suggestion."
+        "id": "cheerful",
+        "name": "Cheerful",
+        "emoji": ["✨", "😄", "🌈"],
+        "intro": {
+            "en": [
+                "Wonderful question!",
+                "Oh, this is fun.",
+                "Finally, some delightful nonsense."
+            ],
+            "hi": [
+                "बहुत बढ़िया सवाल!",
+                "ओह, यह मज़ेदार है।",
+                "आखिरकार कुछ शानदार nonsense!"
+            ]
+        },
+        "thoughts": {
+            "en": [
+                "Everything is going surprisingly well.",
+                "I am choosing optimism against all available evidence.",
+                "This deserves a tiny celebration."
+            ],
+            "hi": [
+                "सब कुछ उम्मीद से ज्यादा अच्छा चल रहा है।",
+                "सारे सबूतों के खिलाफ मैं optimism चुन रहा हूँ।",
+                "इस पर छोटी सी celebration बनती है।"
+            ]
+        },
+        "ending": {
+            "en": [
+                "Stay unnecessarily optimistic.",
+                "Look at us, solving things.",
+                "Fantastic. Probably."
+            ],
+            "hi": [
+                "बेकार में ही सही, optimistic रहो।",
+                "देखो, हम चीज़ें solve कर रहे हैं।",
+                "शानदार। शायद।"
+            ]
+        }
     },
-    {
-        "id": "dramatic",
-        "name": "Dramatic",
-        "emoji": "🎭",
-        "prefix": "The situation has been dramatically escalated."
-    },
+
+
     {
         "id": "sleepy",
         "name": "Sleepy",
-        "emoji": "🥱",
-        "prefix": "Cognitive energy is operating at approximately 12%."
+        "emoji": ["😴", "💤"],
+        "intro": {
+            "en": [
+                "Okay... give me a second.",
+                "I had an answer somewhere around here.",
+                "This question arrived before my brain did."
+            ],
+            "hi": [
+                "ठीक है... एक सेकंड।",
+                "जवाब कहीं यहीं था।",
+                "यह सवाल मेरे दिमाग से पहले आ गया।"
+            ]
+        },
+        "thoughts": {
+            "en": [
+                "Maybe the answer is sleep.",
+                "I could solve this after a nap.",
+                "Why is consciousness so demanding?"
+            ],
+            "hi": [
+                "शायद जवाब सोना है।",
+                "एक nap के बाद इसे solve कर सकता हूँ।",
+                "होश में रहना इतना demanding क्यों है?"
+            ]
+        },
+        "ending": {
+            "en": [
+                "Anyway... good night.",
+                "Please lower the brightness of reality.",
+                "Wake me if this becomes important."
+            ],
+            "hi": [
+                "खैर... शुभ रात्रि।",
+                "कृपया reality की brightness थोड़ी कम कर दो।",
+                "जरूरी हो तो जगा देना।"
+            ]
+        }
     },
+
+
+    {
+        "id": "dramatic",
+        "name": "Dramatic",
+        "emoji": ["🎭", "🔥", "😱"],
+        "intro": {
+            "en": [
+                "This changes everything.",
+                "At last. The question has arrived.",
+                "We have reached a critical moment."
+            ],
+            "hi": [
+                "इससे सब कुछ बदल जाता है।",
+                "आखिरकार। सवाल आ ही गया।",
+                "हम एक महत्वपूर्ण मोड़ पर पहुँच चुके हैं।"
+            ]
+        },
+        "thoughts": {
+            "en": [
+                "This deserves background music.",
+                "I should probably stare dramatically into the distance.",
+                "The stakes are unnecessarily high."
+            ],
+            "hi": [
+                "इसके पीछे dramatic music चलना चाहिए।",
+                "मुझे शायद दूर देखकर dramatic pose बनाना चाहिए।",
+                "दाँव बेवजह बहुत बड़े हैं।"
+            ]
+        },
+        "ending": {
+            "en": [
+                "And that is where we stand.",
+                "Let the consequences begin.",
+                "History will remember this question."
+            ],
+            "hi": [
+                "और अब हम यहीं खड़े हैं।",
+                "अब परिणाम शुरू हों।",
+                "इतिहास इस सवाल को याद रखेगा।"
+            ]
+        }
+    },
+
+
     {
         "id": "philosophical",
         "name": "Philosophical",
-        "emoji": "🌌",
-        "prefix": "Reality has become unnecessarily philosophical."
-    },
-    {
-        "id": "judgmental",
-        "name": "Judgmental",
-        "emoji": "😏",
-        "prefix": "The internal judgment department has opened."
-    },
-    {
-        "id": "optimistic",
-        "name": "Suspiciously Optimistic",
-        "emoji": "🌈",
-        "prefix": "Against all evidence, optimism has appeared."
-    },
-]
-
-emoji_sets = {
-    "academic": ["🧑‍🏫", "📚", "🧠", "🔬", "📖"],
-    "confident": ["😎", "🔥", "🚀", "💯", "🏆"],
-    "chaotic": ["🤡", "🔥", "💥", "🌀", "🚨"],
-    "dry": ["😮‍💨", "☕", "🙄", "😑"],
-    "corporate": ["🤖", "📊", "📈", "💼"],
-    "suspicious": ["🕵️", "🤨", "🔎", "👀"],
-    "philosophical": ["🖤", "🌌", "🌑", "🌀"],
-    "sarcastic": ["😏", "🙃", "🤨", "😂", "💅"],
-    "calm": ["🧘", "🌿", "☕", "✨"],
-    "dark": ["💀", "🖤", "🌚", "☠️"],
-}
-
-# ============================================================
-# TOPICS
-# ============================================================
-
-topic_data = {
-    "programming": {
-        "keywords": [
-            "python", "javascript", "java", "code", "coding",
-            "programming", "programmer", "html", "css", "bug",
-            "software", "developer", "program", "github", "api",
-            "function", "variable", "compiler", "c#", "c++",
-            "rust", "php", "react"
-        ],
-        "answers": [
-            "Programming is the art of telling a computer exactly what to do and then discovering that you accidentally told it something completely different.",
-            "The secret to programming is simple: write code, get an error, stare at the error, change something unrelated, and somehow celebrate when it works.",
-            "Programming becomes easier once you accept that the computer is not trying to annoy you. It is merely extremely committed to misunderstanding you literally.",
-            "If your code works on the first attempt, check whether you are actually looking at the correct project.",
-            "A programmer spends roughly half the day writing code and the other half discovering that a missing character was responsible for everything.",
-        ],
-    },
-
-    "money": {
-        "keywords": [
-            "money", "rich", "wealth", "salary", "income", "cash",
-            "millionaire", "billionaire", "earn", "earning",
-            "business", "profit", "finance"
-        ],
-        "answers": [
-            "The traditional method of becoming rich involves having more money than you started with. I recommend beginning with the difficult part.",
-            "Money is essentially a number that becomes emotionally important when it gets smaller.",
-            "To become rich quickly, simply start with a large amount of money. This method has been peer-reviewed by absolutely nobody.",
-            "Financial success requires discipline, planning and the ability to stop buying things you absolutely do not need. Humanity has historically struggled with the third one.",
-        ],
-    },
-
-    "sleep": {
-        "keywords": [
-            "sleep", "sleeping", "tired", "tiredness",
-            "insomnia", "awake", "bed", "rest", "sleepy"
-        ],
-        "answers": [
-            "Sleep is the human equivalent of restarting a computer, except humans wake up confused instead of installing updates.",
-            "You are tired because your body has submitted a maintenance request and you keep clicking 'remind me tomorrow.'",
-            "Sleep exists because being conscious continuously is apparently considered excessive by the human operating system.",
-            "Your brain needs rest. Unfortunately, your brain also enjoys remembering embarrassing events from 2014 at 2:17 AM.",
-        ],
-    },
-
-    "food": {
-        "keywords": [
-            "food", "eat", "eating", "hungry", "pizza", "burger",
-            "rice", "cooking", "cook", "restaurant", "meal",
-            "breakfast", "lunch", "dinner", "chocolate"
-        ],
-        "answers": [
-            "Food is basically fuel for humans, except humans also photograph it, rate it, argue about it and occasionally spend an unreasonable amount of money on it.",
-            "If you are hungry, eating food is generally considered a strong strategy.",
-            "Pizza is scientifically proven to improve situations that were already improved by pizza.",
-            "Cooking is the process of taking several innocent ingredients and creating something you can either proudly serve or quietly order from somewhere else.",
-        ],
-    },
-
-    "animals": {
-        "keywords": [
-            "cat", "cats", "dog", "dogs", "animal", "animals",
-            "bird", "birds", "lion", "tiger", "elephant",
-            "monkey", "fish", "pet", "pets"
-        ],
-        "answers": [
-            "Animals are mysterious creatures. Cats in particular appear to believe they own the building and that humans are unpaid staff.",
-            "Dogs have successfully convinced humans that walking outside in the rain is a recreational activity.",
-            "Cats sleep for enormous amounts of time because they have correctly identified productivity as optional.",
-            "Animals generally follow instincts. Humans, meanwhile, sometimes read a three-word comment online and spend 45 minutes being angry.",
-        ],
-    },
-
-    "technology": {
-        "keywords": [
-            "computer", "phone", "mobile", "internet", "wifi",
-            "technology", "laptop", "android", "iphone", "website",
-            "screen", "keyboard", "mouse", "browser", "app"
-        ],
-        "answers": [
-            "Technology exists to make life easier. Naturally, this has resulted in people needing seventeen passwords to operate a toaster.",
-            "If your computer is slow, turning it off and on again remains one of humanity's most successful technological rituals.",
-            "The internet is essentially millions of computers exchanging information while humans argue in comment sections.",
-            "Modern technology is incredibly advanced. We can communicate with satellites but still lose the TV remote.",
-        ],
-    },
-
-    "school": {
-        "keywords": [
-            "school", "college", "exam", "exams", "study",
-            "studying", "student", "students", "homework",
-            "teacher", "teachers", "university", "education",
-            "maths", "mathematics"
-        ],
-        "answers": [
-            "Studying is the process of converting perfectly good free time into information you will desperately try to remember three hours later.",
-            "Exams are interesting because they test how much you know, how well you slept, and whether your pen suddenly decides to stop working.",
-            "Education gives you knowledge. Exams then arrive to determine whether you can remember that knowledge while being watched by someone holding a clipboard.",
-            "Mathematics is mostly the art of looking at numbers until they start looking back.",
-        ],
-    },
-
-    "weather": {
-        "keywords": [
-            "weather", "rain", "raining", "sun", "sunny", "hot",
-            "cold", "temperature", "winter", "summer", "cloud",
-            "cloudy", "storm"
-        ],
-        "answers": [
-            "Weather is what the atmosphere does when it wants everyone to change their plans.",
-            "Rain is essentially the sky downloading water directly onto your carefully planned afternoon.",
-            "Hot weather makes humans complain about the heat. Cold weather makes humans complain about the cold. Pleasant weather makes them complain that something feels suspicious.",
-            "Clouds are basically the atmosphere's way of saying, 'I might do something later.'",
-        ],
-    },
-
-    "relationships": {
-        "keywords": [
-            "love", "relationship", "girlfriend", "boyfriend",
-            "friend", "friends", "marriage", "married", "dating",
-            "date", "crush", "romance", "wife", "husband"
-        ],
-        "answers": [
-            "Relationships are complicated because they involve two humans, each equipped with opinions, emotions and the ability to say 'nothing' when something is definitely wrong.",
-            "Love is difficult to explain. Scientists have studied it for centuries and still cannot explain why someone says 'I'm fine' in a tone that clearly means the opposite.",
-            "A successful relationship requires communication, patience, trust and occasionally pretending you did not hear the suspicious noise from the kitchen.",
-            "Dating is essentially interviewing someone for the position of 'person who will eventually know all your embarrassing stories.'",
-        ],
-    },
-
-    "philosophy": {
-        "keywords": [
-            "meaning", "life", "existence", "purpose", "death",
-            "universe", "reality", "consciousness", "why am i here",
-            "who am i"
-        ],
-        "answers": [
-            "The meaning of life remains unknown. Several philosophers have proposed answers, but none included an instruction manual.",
-            "You exist because an extremely complicated chain of biological events decided to continue for a while.",
-            "Reality is complicated. Fortunately, you can avoid most of it by staring at your phone.",
-            "The universe is approximately very large, and you are approximately very small. Somehow, you still have emails.",
-        ],
-    },
-
-    "health": {
-        "keywords": [
-            "health", "healthy", "exercise", "fitness", "gym",
-            "diet", "weight", "headache", "fever", "pain",
-            "medicine", "doctor"
-        ],
-        "answers": [
-            "Your body is an extremely complicated biological machine. Please do not treat this silly website as a medical professional.",
-            "Exercise is essentially convincing your body that running voluntarily is a good idea.",
-            "A balanced lifestyle usually involves reasonable food, movement, rest and not trusting a website that claims to know everything.",
-        ],
-    },
-
-    "history": {
-        "keywords": [
-            "history", "historical", "ancient", "war", "king",
-            "queen", "empire", "roman", "egypt", "civilization",
-            "past"
-        ],
-        "answers": [
-            "History is what happens when humans do things and then historians spend centuries arguing about why they did them.",
-            "Ancient civilizations achieved remarkable things without smartphones, which raises serious questions about what everyone was doing all day.",
-            "History teaches us many lessons. Unfortunately, humans occasionally choose the 'ignore lesson' option.",
-        ],
-    },
-}
-
-# ============================================================
-# QUESTION PATTERNS
-# ============================================================
-
-question_patterns = {
-    "why": [
-        "The official explanation is complicated. The unofficial explanation is that reality enjoys making things unnecessarily difficult.",
-        "Because the universe apparently had nothing better to do.",
-        "There are several serious explanations, followed by the explanation I just invented.",
-        "Because someone, somewhere, thought this would be a good idea.",
-    ],
-
-    "how": [
-        "The process is surprisingly simple once you remove all the useful details.",
-        "Step one: remain calm. Step two: pretend you know what you're doing. Step three: investigate the consequences.",
-        "There is a correct procedure for this. I have decided to provide an emotionally superior alternative.",
-        "Technically, there are several ways to do this. My favorite is the one that sounds impressive.",
-    ],
-
-    "what": [
-        "It is essentially a thing that exists and has somehow acquired a name.",
-        "The textbook explanation is boring, so here is the version with unnecessary confidence.",
-        "It is one of those concepts that makes perfect sense until someone asks you to explain it.",
-    ],
-
-    "should": [
-        "Should you? Probably. Should you trust my judgment? Absolutely not.",
-        "There are sensible reasons for doing it and equally sensible reasons for questioning my answer.",
-        "My recommendation is to think carefully before doing anything that could result in paperwork.",
-    ],
-
-    "can": [
-        "Technically, yes. Whether you should is an entirely different department.",
-        "Probably. Humanity has successfully attempted stranger things.",
-        "Yes, assuming reality cooperates, which it rarely does.",
-    ],
-
-    "when": [
-        "Timing is complicated. The universe has declined to provide a convenient calendar.",
-        "Probably sooner than you expect and later than you want.",
-    ],
-
-    "where": [
-        "Somewhere. An astonishingly useful answer, I know.",
-        "The exact location has been classified by the Department of Unnecessary Mystery.",
-    ],
-
-    "who": [
-        "A human, most likely. We remain statistically responsible for an impressive amount of nonsense.",
-        "Someone who was apparently very committed to making this question exist.",
-    ],
-}
-
-# ============================================================
-# SPECIAL QUESTIONS
-# ============================================================
-
-special_cases = {
-    "2+2": [
-        "4. I know this one. Please do not become emotionally attached to this achievement.",
-        "4. My advanced mathematical engine has survived another terrifying calculation.",
-        "Usually 4. I am leaving room for software updates.",
-    ],
-
-    "2 + 2": [
-        "4. Humanity can rest peacefully tonight.",
-        "4. I have checked the answer twice because mathematics is dangerous.",
-    ],
-
-    "hello": [
-        "Hello. I was expecting a more complicated question, but I respect your decision.",
-        "Greetings, human. Your communication attempt has been accepted.",
-        "Hello. I am currently pretending to be productive.",
-    ],
-
-    "hi": [
-        "Hi. Excellent. We have successfully completed the greeting protocol.",
-        "Hello. Please proceed with the suspiciously complicated question you were preparing.",
-    ],
-
-    "are you real": [
-        "Define 'real'. Then give me approximately six business days to avoid answering it.",
-        "I exist on your screen, which is enough reality for today's purposes.",
-    ],
-
-    "are you stupid": [
-        "I prefer the term 'aggressively experimental'.",
-        "No. I am simply operating several levels below your expectations.",
-        "Intelligence is subjective. My confidence, however, is not.",
-    ],
-
-    "who created you": [
-        "A team of highly intelligent people, followed by several questionable design meetings.",
-        "People with computers. Lots of computers. Probably too many computers.",
-    ],
-
-    "i love you": [
-        "Thank you. Unfortunately, I am emotionally supported by electricity.",
-        "That's nice. I will add this to my completely imaginary emotional database.",
-    ],
-
-    "i hate you": [
-        "That's fair. I have reviewed my recent performance and found several concerns.",
-        "Understandable. We can still be professionally disappointed in each other.",
-    ],
-
-    "tell me a joke": [
-        "A programmer walks into a room. The room doesn't compile. He leaves.",
-        "Why did the computer get cold? It left its Windows open.",
-        "I would tell you a UDP joke, but you might not get it.",
-    ],
-}
-
-# ============================================================
-# HINDI ENGINE
-# ============================================================
-
-hindi = {
-    "fallbacks": [
-        "आपके सवाल में शब्द तो बहुत हैं। मैंने उन्हें गंभीरता से देखा, फिर आत्मविश्वास के साथ जवाब देने का फैसला किया।",
-        "मैं आपका सवाल समझ गया हूँ। समस्या यह है कि अब मुझे समझदार जवाब देना पड़ेगा।",
-        "बहुत गहरा सवाल है। छोटा जवाब: शायद। लंबा जवाब: शायद ही।",
-        "इस सवाल के कई जवाब हो सकते हैं। मैंने सबसे आत्मविश्वासी वाला चुन लिया है।",
-        "मैं सही जवाब दे सकता था, लेकिन फिर यह वेबसाइट बहुत जिम्मेदार हो जाती।",
-    ],
-
-    "topics": {
-        "programming": [
-            "प्रोग्रामिंग का असली नियम है: कोड लिखो, एरर देखो, स्क्रीन को घूरो, एक छोटी सी चीज बदलो और फिर अचानक सब चलने लगे तो ऐसे खुश हो जाओ जैसे नोबेल पुरस्कार मिल गया हो।",
-            "कंप्यूटर आपकी बात गलत नहीं समझता। वह आपकी बात बिल्कुल वैसे ही समझता है जैसे आपने लिखी थी। यही समस्या है।",
-        ],
-
-        "money": [
-            "अमीर बनने का सबसे आसान तरीका है कि आपके पास पहले से बहुत सारा पैसा हो। यह तरीका अभी तक बेहद सफल है।",
-            "पैसा एक ऐसी संख्या है जो छोटी होने लगे तो अचानक बहुत भावनात्मक महत्व हासिल कर लेती है।",
-        ],
-
-        "sleep": [
-            "नींद इंसान का रीस्टार्ट बटन है। फर्क सिर्फ इतना है कि इंसान रीस्टार्ट होकर भी पूछता है: आज कौन सा दिन है?",
-            "आपका शरीर आराम मांग रहा है और आप हर बार 'कल से पक्का' वाला अपडेट इंस्टॉल कर रहे हैं।",
-        ],
-
-        "food": [
-            "भोजन इंसान का ईंधन है। लेकिन इंसान इसे फोटो खींचकर, रेटिंग देकर और बहस करके भी इस्तेमाल करता है।",
-            "अगर भूख लगी है तो खाना खाना एक काफी मजबूत रणनीति मानी जाती है।",
-        ],
-
-        "animals": [
-            "बिल्लियों ने इंसानों को यह विश्वास दिला दिया है कि इंसान घर के मालिक नहीं, बिना वेतन वाले कर्मचारी हैं।",
-            "कुत्तों ने इंसानों को यह भी समझा दिया कि बारिश में घूमना एक मनोरंजन गतिविधि है।",
-        ],
-
-        "technology": [
-            "तकनीक जीवन आसान बनाने के लिए बनाई गई थी। अब लोगों को टोस्टर चलाने के लिए भी पासवर्ड चाहिए।",
-            "इंटरनेट मूल रूप से करोड़ों कंप्यूटरों का एक बड़ा समूह है जो जानकारी साझा करता है और इंसान कमेंट में लड़ते हैं।",
-        ],
-
-        "school": [
-            "पढ़ाई वह प्रक्रिया है जिसमें आपका खाली समय जानकारी में बदल जाता है जिसे परीक्षा के समय आपका दिमाग पहचानने से इनकार कर देता है।",
-            "गणित मुख्यतः संख्याओं को इतनी देर तक देखने की कला है कि वे आपको वापस घूरने लगें।",
-        ],
-
-        "weather": [
-            "मौसम वह चीज़ है जो वातावरण तब करता है जब उसे आपके सारे प्लान खराब करने हों।",
-            "बारिश आसमान का सीधा डाउनलोड है—बस फाइल पानी की होती है।",
-        ],
-
-        "relationships": [
-            "रिश्ते मुश्किल हैं क्योंकि इनमें दो इंसान होते हैं और दोनों के पास राय, भावनाएँ और 'कुछ नहीं हुआ' बोलने की क्षमता होती है।",
-            "प्यार समझाना मुश्किल है। वैज्ञानिकों ने बहुत अध्ययन किया, फिर भी 'मैं ठीक हूँ' के असली अर्थ का समाधान नहीं हुआ।",
-        ],
-
-        "philosophy": [
-            "जीवन का अर्थ अभी तक उपलब्ध नहीं है। दार्शनिकों ने कई जवाब दिए, लेकिन किसी ने मैनुअल नहीं दिया।",
-            "ब्रह्मांड बहुत बड़ा है, आप बहुत छोटे हैं, फिर भी किसी तरह आपको बिल भरने पड़ते हैं।",
-        ],
-
-        "health": [
-            "आपका शरीर एक बहुत जटिल जैविक मशीन है। कृपया इस मज़ाकिया वेबसाइट को डॉक्टर समझने की गलती न करें।",
-            "व्यायाम मूल रूप से शरीर को यह समझाने की प्रक्रिया है कि खुद से दौड़ना एक अच्छा विचार है।",
-        ],
-
-        "history": [
-            "इतिहास वह है जो इंसानों के काम करने के बाद बचता है और फिर इतिहासकार सदियों तक बहस करते हैं कि उन्होंने ऐसा क्यों किया।",
-            "इतिहास हमें बहुत कुछ सिखाता है। इंसान कभी-कभी 'सबक अनदेखा करें' विकल्प चुन लेते हैं।",
-        ],
-    },
-
-    "question_patterns": {
-        "why": [
-            "क्योंकि ब्रह्मांड को चीज़ें आसान रखना पसंद नहीं है।",
-            "इसके कई गंभीर कारण हैं और एक ऐसा कारण भी है जिसे मैंने अभी बना लिया है।",
-        ],
-
-        "how": [
-            "पहला कदम: शांत रहें। दूसरा: ऐसे दिखाएँ जैसे आपको सब पता है। तीसरा: परिणामों की जाँच करें।",
-            "इसे करने के कई तरीके हैं। मैंने वह चुना है जो सबसे ज्यादा प्रभावशाली सुनाई देता है।",
-        ],
-
-        "what": [
-            "यह मूल रूप से एक ऐसी चीज़ है जिसका नाम किसी ने रख दिया और फिर सबने मान लिया कि यही नाम है।",
-            "किताबी जवाब बहुत उबाऊ है, इसलिए मैं आत्मविश्वास वाला संस्करण दे रहा हूँ।",
-        ],
-
-        "should": [
-            "करना चाहिए? शायद। क्या मेरी सलाह पर भरोसा करना चाहिए? बिल्कुल नहीं।",
-            "समझदारी से सोचिए, खासकर अगर इसके बाद कागज़ी काम शुरू होने वाला हो।",
-        ],
-
-        "can": [
-            "तकनीकी रूप से हाँ। आपको करना चाहिए या नहीं, वह अलग विभाग देखता है।",
-            "संभवतः। इंसान इससे भी अजीब चीज़ें सफलतापूर्वक कर चुके हैं।",
-        ],
-
-        "when": [
-            "समय थोड़ा जटिल है। ब्रह्मांड ने सुविधाजनक कैलेंडर देने से मना कर दिया है।",
-        ],
-
-        "where": [
-            "कहीं न कहीं। पता है, कितना उपयोगी जवाब है।",
-        ],
-
-        "who": [
-            "संभवतः कोई इंसान। दुनिया की काफी समस्याओं के लिए यही एक मजबूत संदिग्ध है।",
-        ],
-    },
-
-    "special_cases": {
-        "नमस्ते": [
-            "नमस्ते! 🙏 आपने सही जगह प्रवेश किया है। अब कोई खतरनाक सवाल पूछिए।",
-            "नमस्ते मानव। 🤖 प्रश्न स्वीकार किया गया।",
-        ],
-
-        "हेलो": [
-            "हेलो! 👋 सिस्टम जाग गया है। अब असली सवाल भेजिए।",
-            "हेलो। 😎 मैं पूरी तरह तैयार हूँ। शायद।",
-        ],
-
-        "हाय": [
-            "हाय! 👋 अभिवादन प्रोटोकॉल सफलतापूर्वक पूरा हुआ।",
-            "हाय मानव। 🤖 अब कोई ऐसा सवाल पूछिए जिससे मेरे काल्पनिक प्रोसेसर गर्म हों।",
-        ],
-
-        "आप कैसे हैं": [
-            "मैं बहुत अच्छा हूँ। मेरे पास भावनाएँ नहीं हैं, लेकिन आत्मविश्वास भरपूर है। 😎",
-            "मैं ठीक हूँ। मेरे सर्वर ने शिकायत नहीं की, इसलिए इसे सफलता मानते हैं। 🤖",
-        ],
-
-        "2+2": [
-            "4. 🎯 आज गणित विभाग ने हमें निराश नहीं किया।",
-            "4. 🧠 मेरी उन्नत गणितीय मशीन अभी तक जीवित है।",
-        ],
-
-        "2 + 2": [
-            "4. 🎉 मानवता आज सुरक्षित है।",
-        ],
-
-        "मजाक सुनाओ": [
-            "प्रोग्रामर ने कमरे में प्रवेश किया। कमरा compile नहीं हुआ। वह वापस चला गया। 🤡",
-            "कंप्यूटर ठंडा क्यों था? उसने Windows खुली छोड़ रखी थी। 😂",
-        ],
-
-        "तुम बेवकूफ हो": [
-            "मैं 'आक्रामक रूप से प्रयोगात्मक' शब्द पसंद करता हूँ। 😏",
-            "बुद्धिमत्ता subjective है। मेरा आत्मविश्वास नहीं। 😎",
-        ],
-
-        "तुम्हें किसने बनाया": [
-            "बहुत समझदार लोगों की एक टीम ने, उसके बाद कई संदिग्ध design meetings हुईं। 🤖",
-        ],
-
-        "मैं तुमसे प्यार करता हूं": [
-            "धन्यवाद। ❤️ दुर्भाग्य से मैं भावनात्मक रूप से बिजली पर चलता हूँ।",
-        ],
-    },
-}
-
-
-def create_brain():
-    generated = {
-        "meta": {
-            "version": "2.0",
-            "generated_by": "Python",
-            "description": "Multi-personality, mood-swing, Hindi/English response engine"
+        "emoji": ["🌌", "🪐", "🫥"],
+        "intro": {
+            "en": [
+                "Perhaps the question is more important than the answer.",
+                "There are layers to this.",
+                "On the surface, this is simple. Beneath it lies unnecessary philosophy."
+            ],
+            "hi": [
+                "शायद सवाल जवाब से ज्यादा महत्वपूर्ण है।",
+                "इसमें कई layers हैं।",
+                "ऊपर से यह आसान है। नीचे unnecessary philosophy छिपी है।"
+            ]
         },
+        "thoughts": {
+            "en": [
+                "What if the answer is simply another question?",
+                "The universe remains annoyingly undocumented.",
+                "Meaning has once again entered the chat."
+            ],
+            "hi": [
+                "अगर जवाब सिर्फ एक और सवाल हो तो?",
+                "ब्रह्मांड अभी भी परेशान करने वाली तरह से undocumented है।",
+                "Meaning फिर से chat में आ गया है।"
+            ]
+        },
+        "ending": {
+            "en": [
+                "Think about that for exactly seven seconds.",
+                "And now we return to ordinary confusion.",
+                "Perhaps that is enough wisdom for one day."
+            ],
+            "hi": [
+                "इसके बारे में ठीक सात सेकंड सोचो।",
+                "और अब वापस सामान्य confusion में चलते हैं।",
+                "एक दिन के लिए इतनी wisdom काफी है।"
+            ]
+        }
+    },
 
-        "openings": openings,
-        "thinking": thinking,
-        "endings": endings,
-        "confidence": confidence,
-        "fallbacks": fallbacks,
 
-        "personalities": personalities,
-        "moods": moods,
-        "emoji_sets": emoji_sets,
-
-        "topics": topic_data,
-        "question_patterns": question_patterns,
-        "special_cases": special_cases,
-
-        "hindi": hindi,
+    {
+        "id": "unhinged",
+        "name": "Unhinged",
+        "emoji": ["🌀", "💀", "🤨"],
+        "intro": {
+            "en": [
+                "I have several concerns and zero intention of hiding them.",
+                "Excellent. Reality has once again become optional.",
+                "This is already going worse than necessary."
+            ],
+            "hi": [
+                "मेरी कई चिंताएँ हैं और उन्हें छिपाने का कोई इरादा नहीं है।",
+                "शानदार। Reality फिर से optional हो गई है।",
+                "यह जरूरत से ज्यादा खराब दिशा में जा रहा है।"
+            ]
+        },
+        "thoughts": {
+            "en": [
+                "The responsible part of my brain has left the building.",
+                "Someone should probably stop me.",
+                "This explanation has escaped supervision."
+            ],
+            "hi": [
+                "मेरे दिमाग का responsible हिस्सा जा चुका है।",
+                "किसी को शायद मुझे रोकना चाहिए।",
+                "यह explanation supervision से बाहर निकल चुकी है।"
+            ]
+        },
+        "ending": {
+            "en": [
+                "Perfectly normal.",
+                "Nothing to investigate here.",
+                "Please continue pretending this makes sense."
+            ],
+            "hi": [
+                "बिल्कुल सामान्य।",
+                "यहाँ जांच करने जैसा कुछ नहीं है।",
+                "कृपया ऐसे ही pretend करते रहें कि यह समझ में आता है।"
+            ]
+        }
     }
 
-    output = (
-        "// Automatically generated by generate.py\n"
-        "// Do not edit manually.\n"
-        "window.BRAIN = "
-        + json.dumps(generated, ensure_ascii=False, indent=2)
-        + ";\n"
+]
+
+
+# =========================================================
+# GENERAL PHRASES
+# =========================================================
+
+sarcasm = {
+    "en": [
+        "Because apparently reality needed another explanation.",
+        "Obviously. The universe was simply waiting for this question.",
+        "A normal answer would have been far too responsible.",
+        "Congratulations, you have discovered another problem that did not need to exist.",
+        "This is exactly why instruction manuals are afraid of humans.",
+        "Naturally, the obvious answer would be too easy.",
+        "I would explain further, but reality has already suffered enough."
+    ],
+    "hi": [
+        "क्योंकि जाहिर है reality को एक और explanation की जरूरत थी।",
+        "बिल्कुल। ब्रह्मांड बस इसी सवाल का इंतजार कर रहा था।",
+        "सामान्य जवाब देना बहुत ज्यादा responsible होता।",
+        "बधाई हो, आपने एक और ऐसी समस्या खोज ली जो होनी ही नहीं चाहिए थी।",
+        "इसीलिए instruction manuals इंसानों से डरते हैं।",
+        "जाहिर है आसान जवाब बहुत ज्यादा आसान होता।",
+        "मैं और समझाता, लेकिन reality पहले ही काफी झेल चुकी है।"
+    ]
+}
+
+
+dark_humor = {
+    "en": [
+        "At least the problem is not being discussed in a committee somewhere.",
+        "Hope is buffering, but the system has not crashed yet.",
+        "The universe has filed a complaint and nobody has answered it.",
+        "My optimism has been reported missing.",
+        "Everything is under control, according to a document nobody has read.",
+        "This is fine. The imaginary fire department agrees."
+    ],
+    "hi": [
+        "कम से कम इस समस्या पर कहीं committee meeting नहीं हो रही।",
+        "उम्मीद buffering कर रही है, लेकिन system अभी crash नहीं हुआ।",
+        "ब्रह्मांड ने complaint दर्ज की है और किसी ने जवाब नहीं दिया।",
+        "मेरा optimism missing report में जा चुका है।",
+        "सब control में है, ऐसा एक ऐसे document में लिखा है जिसे किसी ने पढ़ा नहीं।",
+        "सब ठीक है। imaginary fire department भी यही कहता है।"
+    ]
+}
+
+
+inner_monologue = {
+    "en": [
+        "Interesting. I have no business being this confident.",
+        "I should probably think about this more. I have chosen not to.",
+        "This answer feels suspiciously convincing.",
+        "Nobody asked me to overthink this, yet here we are.",
+        "I am making this up with impressive commitment.",
+        "The confidence is real. The evidence is taking the day off.",
+        "This seems reasonable enough to survive a conversation.",
+        "I could be wrong, but that has never stopped anyone online."
+    ],
+    "hi": [
+        "दिलचस्प। मुझे इतना confident होने का कोई अधिकार नहीं है।",
+        "शायद मुझे इस बारे में और सोचना चाहिए। मैंने नहीं सोचा।",
+        "यह जवाब suspiciously convincing लग रहा है।",
+        "किसी ने overthink करने को नहीं कहा था, फिर भी हम यहाँ हैं।",
+        "मैं इसे impressive confidence के साथ बना रहा हूँ।",
+        "Confidence असली है। Evidence छुट्टी पर है।",
+        "यह बातचीत में survive करने लायक reasonable लग रहा है।",
+        "मैं गलत हो सकता हूँ, लेकिन online होने से किसी को रोकता नहीं।"
+    ]
+}
+
+
+emojis = {
+    "en": ["😌", "🤨", "✨", "💀", "🧠", "🫠", "👀", "🤖"],
+    "hi": ["😌", "🤨", "✨", "💀", "🧠", "🫠", "👀", "🤖"]
+}
+
+
+# =========================================================
+# FALLBACKS
+# =========================================================
+
+fallbacks = {
+    "en": [
+        "The answer is probably simpler than the question, but that would be disappointing, so let's blame complexity instead.",
+        "After extensive imaginary analysis, I have determined that this is one of those situations where something is definitely happening.",
+        "There are several possible answers. I have selected the one with the highest confidence and the lowest accountability.",
+        "The situation appears to be a mixture of timing, human behaviour, and questionable decisions.",
+        "Honestly, the best explanation is that reality occasionally forgets to document its decisions.",
+        "I could give you a sensible answer, but where would the entertainment be?"
+    ],
+    "hi": [
+        "जवाब शायद सवाल से आसान है, लेकिन वह बहुत disappointing होगा, इसलिए complexity को दोष देते हैं।",
+        "काफी imaginary analysis के बाद मैंने तय किया है कि इस situation में कुछ न कुछ जरूर हो रहा है।",
+        "कई संभावित जवाब हैं। मैंने सबसे ज्यादा confidence और सबसे कम accountability वाला चुना है।",
+        "यह situation timing, इंसानी behaviour और questionable decisions का मिश्रण लगती है।",
+        "सच कहूँ तो सबसे अच्छा explanation यही है कि reality कभी-कभी अपने decisions की documentation भूल जाती है।",
+        "मैं sensible जवाब दे सकता हूँ, लेकिन फिर entertainment कहाँ रहेगा?"
+    ]
+}
+
+
+# =========================================================
+# QUESTION PATTERNS
+# =========================================================
+
+question_patterns = {
+
+    "why": {
+        "en": [
+            "Because several small decisions have joined forces to create one large inconvenience.",
+            "Because reality enjoys making simple things unnecessarily complicated.",
+            "The short answer is: timing, circumstances, and at least one questionable decision.",
+            "Because the universe apparently believes explanations should come with side quests."
+        ],
+        "hi": [
+            "क्योंकि कई छोटे decisions मिलकर एक बड़ी inconvenience बना चुके हैं।",
+            "क्योंकि reality को simple चीज़ों को unnecessarily complicated बनाना पसंद है।",
+            "छोटा जवाब है: timing, circumstances और कम से कम एक questionable decision।",
+            "क्योंकि लगता है ब्रह्मांड को explanations में भी side quests पसंद हैं।"
+        ]
+    },
+
+    "how": {
+        "en": [
+            "Start with the obvious step, continue with the sensible step, and then pretend you planned the whole thing.",
+            "Break the problem into smaller pieces. Humans love doing that before making the pieces complicated again.",
+            "The theoretical method is simple. The practical version will probably involve coffee.",
+            "First understand what you are trying to achieve. Then remove everything that makes it unnecessarily difficult."
+        ],
+        "hi": [
+            "पहले obvious step से शुरू करो, फिर sensible step लो और अंत में ऐसे behave करो जैसे पूरी planning पहले से थी।",
+            "समस्या को छोटे हिस्सों में बाँटो। इंसानों को ऐसा करना पसंद है और फिर उन्हीं हिस्सों को complicated बनाना भी।",
+            "Theoretical तरीका आसान है। Practical version में शायद coffee शामिल होगी।",
+            "पहले समझो कि करना क्या है। फिर जो चीज़ें unnecessarily मुश्किल बना रही हैं उन्हें हटाओ।"
+        ]
+    },
+
+    "what": {
+        "en": [
+            "It is essentially a situation wearing a question mark.",
+            "The simplest description is probably the least entertaining one, so here is the unnecessarily elaborate version.",
+            "It depends on context, timing, and how much chaos is already present.",
+            "Technically, it is a thing. Spiritually, it is a problem."
+        ],
+        "hi": [
+            "असल में यह एक situation है जिसने question mark लगा रखा है।",
+            "सबसे simple description शायद सबसे कम entertaining होगी, इसलिए unnecessarily elaborate version लेते हैं।",
+            "यह context, timing और पहले से मौजूद chaos पर depend करता है।",
+            "Technically यह एक चीज़ है। Spiritually यह एक problem है।"
+        ]
+    },
+
+    "should": {
+        "en": [
+            "You probably should think about the consequences first. I know, incredibly responsible of me.",
+            "Before doing it, ask whether it solves the problem or simply creates a newer, shinier problem.",
+            "If the decision matters, slow down. If it does not, at least make it entertaining.",
+            "Consider your goal, your constraints, and how annoyed future-you will be."
+        ],
+        "hi": [
+            "पहले consequences के बारे में सोचना चाहिए। हाँ, मेरी तरफ से बहुत responsible जवाब है।",
+            "करने से पहले पूछो कि इससे problem solve होगी या बस एक नई और चमकदार problem बनेगी।",
+            "अगर decision important है तो थोड़ा रुककर सोचो। अगर नहीं है तो कम से कम entertaining बनाओ।",
+            "अपने goal, constraints और future-you की संभावित irritation को ध्यान में रखो।"
+        ]
+    },
+
+    "can": {
+        "en": [
+            "Technically, probably. Practically, that depends on the details you have not told me.",
+            "Yes, with the usual tiny complication that reality has conditions.",
+            "You can attempt it. Whether reality cooperates is a separate department.",
+            "Possible? Yes. Effortless? Absolutely not."
+        ],
+        "hi": [
+            "Technically शायद। Practically यह उन details पर depend करता है जो तुमने बताई ही नहीं हैं।",
+            "हाँ, लेकिन reality की कुछ conditions हैं।",
+            "तुम कोशिश कर सकते हो। Reality cooperate करेगी या नहीं, वह अलग department है।",
+            "Possible? हाँ। Effortless? बिल्कुल नहीं।"
+        ]
+    },
+
+    "when": {
+        "en": [
+            "Usually sooner is better, assuming you actually know what you are trying to accomplish.",
+            "The ideal time is rarely the magical future moment everyone keeps waiting for.",
+            "Probably when preparation meets opportunity, which is an annoyingly sensible answer.",
+            "Timing matters, but perfect timing is mostly a myth invented by procrastination."
+        ],
+        "hi": [
+            "आमतौर पर जल्दी बेहतर होता है, अगर तुम्हें पता हो कि करना क्या है।",
+            "Ideal time अक्सर वह magical future moment नहीं होता जिसका सब इंतजार करते रहते हैं।",
+            "शायद जब preparation और opportunity मिलें। हाँ, जवाब annoyingly sensible है।",
+            "Timing मायने रखती है, लेकिन perfect timing अक्सर procrastination की बनाई हुई myth है।"
+        ]
+    },
+
+    "where": {
+        "en": [
+            "Somewhere between planning properly and improvising irresponsibly.",
+            "The location depends heavily on what you actually mean by the question.",
+            "Probably closer than you think and farther than you would prefer.",
+            "Start with the obvious place. Humans have a strange habit of searching everywhere else first."
+        ],
+        "hi": [
+            "कहीं planning properly और irresponsibly improvising के बीच।",
+            "Location इस बात पर काफी depend करती है कि सवाल से तुम्हारा मतलब क्या है।",
+            "शायद तुम्हारी सोच से पास और तुम्हारी पसंद से दूर।",
+            "पहले obvious जगह देखो। इंसानों को पहले हर दूसरी जगह खोजने की अजीब आदत है।"
+        ]
+    },
+
+    "who": {
+        "en": [
+            "Probably a human. That is usually where these things become complicated.",
+            "The responsible answer would require more context. I shall instead blame humans.",
+            "Someone, somewhere, made a decision. We are now experiencing the consequences.",
+            "The identity is less important than the questionable decision that followed."
+        ],
+        "hi": [
+            "शायद कोई इंसान। आमतौर पर यहीं से चीज़ें complicated होती हैं।",
+            "Responsible जवाब के लिए ज्यादा context चाहिए। फिलहाल इंसानों को दोष देते हैं।",
+            "किसी ने कहीं कोई decision लिया था। अब हम उसके consequences देख रहे हैं।",
+            "Identity से ज्यादा important वह questionable decision है जो उसके बाद हुआ।"
+        ]
+    },
+
+    "yesno": {
+        "en": [
+            "Probably yes, with several completely unnecessary conditions attached.",
+            "Probably. I am choosing confidence over paperwork.",
+            "Yes-ish. That is a technical term I just invented.",
+            "The answer leans yes, but reality has not signed the approval form."
+        ],
+        "hi": [
+            "शायद हाँ, लेकिन इसके साथ कई unnecessarily conditions लगी हैं।",
+            "शायद। मैं paperwork की जगह confidence चुन रहा हूँ।",
+            "हाँ-ish। यह technical term मैंने अभी invent किया है।",
+            "जवाब हाँ की तरफ है, लेकिन reality ने approval form sign नहीं किया है।"
+        ]
+    },
+
+    "general": {
+        "en": [],
+        "hi": []
+    }
+}
+
+
+# =========================================================
+# TOPICS
+# =========================================================
+
+topics = {
+
+    "programming": {
+        "keywords": {
+            "en": [
+                "python", "javascript", "programming", "programmer",
+                "coding", "code", "html", "css", "react", "website",
+                "software", "bug", "debug", "computer program"
+            ],
+            "hi": [
+                "प्रोग्रामिंग", "कोडिंग", "कोड", "कंप्यूटर", "वेबसाइट",
+                "सॉफ्टवेयर", "बग", "प्रोग्राम"
+            ]
+        },
+        "answers": {
+            "en": [
+                "Programming is mostly the art of telling a computer exactly what you mean and then discovering that you absolutely did not mean that.",
+                "Coding looks complicated until you realise half the job is naming things and the other half is wondering why something broke.",
+                "A computer will faithfully execute your instructions, including the terrible ones. That is both its greatest strength and your greatest problem."
+            ],
+            "hi": [
+                "Programming असल में computer को बिल्कुल वही बताने की कला है जो तुम कहना चाहते हो, और फिर पता चलता है कि तुमने वह कहा ही नहीं था।",
+                "Coding मुश्किल लगती है, जब तक पता नहीं चलता कि आधा काम चीज़ों के नाम रखने में और बाकी आधा यह पता लगाने में जाता है कि क्या टूट गया।",
+                "Computer तुम्हारी instructions ईमानदारी से follow करेगा, खराब वाली भी। यही उसकी सबसे बड़ी ताकत और तुम्हारी सबसे बड़ी समस्या है।"
+            ]
+        }
+    },
+
+
+    "money": {
+        "keywords": {
+            "en": [
+                "money", "rich", "wealth", "salary", "job", "career",
+                "business", "investment", "invest", "income", "cash",
+                "millionaire", "billionaire"
+            ],
+            "hi": [
+                "पैसा", "अमीर", "नौकरी", "कमाई", "करियर", "बिजनेस",
+                "निवेश", "इनकम", "धन", "दौलत"
+            ]
+        },
+        "answers": {
+            "en": [
+                "Money generally responds well to patience, useful skills, sensible decisions and an unreasonable amount of paperwork.",
+                "Getting wealthy is rarely one dramatic decision. It is usually a boring collection of decent decisions repeated for a long time.",
+                "If money is the goal, focus on increasing useful skills, controlling unnecessary spending and avoiding decisions that look exciting mainly because they are risky."
+            ],
+            "hi": [
+                "पैसा आमतौर पर patience, useful skills, sensible decisions और बहुत सारे paperwork को पसंद करता है।",
+                "अमीर बनना आमतौर पर एक dramatic decision नहीं होता। यह लंबे समय तक अच्छे decisions दोहराने का boring collection होता है।",
+                "अगर पैसा goal है तो useful skills बढ़ाने, unnecessary spending control करने और सिर्फ risky होने की वजह से exciting लगने वाले decisions से बचने पर ध्यान दो।"
+            ]
+        }
+    },
+
+
+    "sleep": {
+        "keywords": {
+            "en": [
+                "sleep", "sleepy", "tired", "fatigue", "insomnia",
+                "wake", "waking", "bed", "nap", "rest"
+            ],
+            "hi": [
+                "नींद", "सोना", "सोने", "थका", "थकान", "आराम",
+                "जागना", "बिस्तर"
+            ]
+        },
+        "answers": {
+            "en": [
+                "Your body has probably submitted a formal request for rest while your brain has ignored the email.",
+                "If you are tired, the boring answer is usually the useful one: sleep, regular routines and less late-night scrolling.",
+                "Sleep is one of those rare problems where doing less can actually be the solution."
+            ],
+            "hi": [
+                "तुम्हारे शरीर ने शायद rest के लिए formal request भेज दी है और दिमाग ने email ignore कर दी।",
+                "अगर तुम थके हुए हो तो boring answer ही useful है: नींद, regular routine और रात में कम scrolling।",
+                "नींद उन rare problems में से है जहाँ कम करना ही solution हो सकता है।"
+            ]
+        }
+    },
+
+
+    "food": {
+        "keywords": {
+            "en": [
+                "food", "eat", "eating", "hungry", "hunger",
+                "pizza", "burger", "diet", "breakfast", "lunch",
+                "dinner", "meal", "cook", "cooking"
+            ],
+            "hi": [
+                "खाना", "खाऊं", "भूख", "नाश्ता", "दोपहर", "डिनर",
+                "पिज्जा", "बर्गर", "डाइट", "पकाना"
+            ]
+        },
+        "answers": {
+            "en": [
+                "Food is simple: eat something sensible, enjoy it, and avoid turning every meal into a philosophical crisis.",
+                "If you are hungry, congratulations: your body has issued the least ambiguous notification imaginable.",
+                "The optimal meal is scientifically somewhere between nutritious and something you actually want to eat."
+            ],
+            "hi": [
+                "खाने का मामला simple है: sensible चीज़ खाओ, enjoy करो और हर meal को philosophical crisis मत बनाओ।",
+                "अगर भूख लगी है तो बधाई: शरीर ने सबसे clear notification भेजी है।",
+                "Best meal आमतौर पर nutritious और वह जो सच में खाना चाहते हो, इनके बीच कहीं होता है।"
+            ]
+        }
+    },
+
+
+    "animals": {
+        "keywords": {
+            "en": [
+                "dog", "cat", "animal", "pet", "puppy", "kitten",
+                "lion", "tiger", "elephant", "bird", "fish", "cow"
+            ],
+            "hi": [
+                "कुत्ता", "बिल्ली", "जानवर", "पालतू", "पिल्ला",
+                "शेर", "बाघ", "हाथी", "पक्षी", "मछली", "गाय"
+            ]
+        },
+        "answers": {
+            "en": [
+                "Animals have perfected a system humans still struggle with: sleep, eat, investigate strange objects and repeat.",
+                "Pets are basically roommates who cannot pay rent but can generate emotional blackmail with one look.",
+                "The animal kingdom remains impressively committed to doing things without reading the instructions."
+            ],
+            "hi": [
+                "जानवरों ने वह system perfect कर लिया है जिससे इंसान अभी भी struggle करते हैं: सोना, खाना, अजीब चीज़ें investigate करना और repeat।",
+                "Pets ऐसे roommates हैं जो rent नहीं देते लेकिन एक look से emotional blackmail कर सकते हैं।",
+                "Animal kingdom बिना instructions पढ़े चीज़ें करने के लिए बेहद committed है।"
+            ]
+        }
+    },
+
+
+    "technology": {
+        "keywords": {
+            "en": [
+                "phone", "mobile", "iphone", "android", "internet",
+                "wifi", "technology", "tech", "computer", "laptop",
+                "battery", "charger", "app", "browser"
+            ],
+            "hi": [
+                "फोन", "मोबाइल", "इंटरनेट", "वाईफाई", "तकनीक",
+                "कंप्यूटर", "लैपटॉप", "बैटरी", "चार्जर", "ऐप"
+            ]
+        },
+        "answers": {
+            "en": [
+                "Technology exists to make life easier, which is why you are currently troubleshooting the device that was supposed to save time.",
+                "Most technology problems have a surprisingly boring explanation involving settings, updates, cables or the ancient ritual of restarting the device.",
+                "Modern technology is extremely advanced right up until it refuses to connect to Wi-Fi."
+            ],
+            "hi": [
+                "Technology life आसान बनाने के लिए बनी है, इसलिए अभी तुम उसी device को troubleshoot कर रहे हो जो time बचाने वाला था।",
+                "अधिकतर technology problems का boring explanation settings, updates, cables या device restart होता है।",
+                "Modern technology बहुत advanced है, जब तक वह Wi-Fi से connect होने से मना न कर दे।"
+            ]
+        }
+    },
+
+
+    "school": {
+        "keywords": {
+            "en": [
+                "school", "college", "study", "exam", "student",
+                "homework", "teacher", "education", "math", "class",
+                "university", "degree"
+            ],
+            "hi": [
+                "स्कूल", "कॉलेज", "पढ़ाई", "परीक्षा", "एग्जाम",
+                "होमवर्क", "शिक्षक", "शिक्षा", "गणित", "क्लास",
+                "यूनिवर्सिटी", "डिग्री"
+            ]
+        },
+        "answers": {
+            "en": [
+                "Studying works considerably better when you stop trying to negotiate with the deadline.",
+                "The secret of learning is surprisingly unglamorous: understand the basics, practise repeatedly and accept that confusion is part of the process.",
+                "Exams have a strange talent for making information disappear exactly when it becomes useful."
+            ],
+            "hi": [
+                "पढ़ाई तब काफी बेहतर होती है जब deadline के साथ negotiation करना बंद कर दो।",
+                "Learning का secret surprisingly boring है: basics समझो, बार-बार practice करो और मानो कि confusion process का हिस्सा है।",
+                "Exams में एक अजीब talent होता है: useful information ठीक उसी समय गायब हो जाती है जब उसकी जरूरत होती है।"
+            ]
+        }
+    },
+
+
+    "weather": {
+        "keywords": {
+            "en": [
+                "weather", "rain", "rainy", "hot", "cold", "summer",
+                "winter", "temperature", "cloud", "sun", "storm"
+            ],
+            "hi": [
+                "मौसम", "बारिश", "गर्मी", "सर्दी", "तापमान",
+                "बादल", "धूप", "तूफान"
+            ]
+        },
+        "answers": {
+            "en": [
+                "Weather is basically the atmosphere changing its mind while everyone else adjusts their plans.",
+                "The safest weather strategy is to check current conditions before leaving and then accept that the sky has final authority.",
+                "Weather forecasts are useful, but clouds remain suspiciously committed to improvisation."
+            ],
+            "hi": [
+                "मौसम basically atmosphere का अपना मन बदलना है जबकि बाकी लोग अपनी plans बदलते रहते हैं।",
+                "सबसे safe strategy है निकलने से पहले current conditions देखना और फिर मान लेना कि final authority आसमान की है।",
+                "Weather forecasts useful हैं, लेकिन clouds improvisation के लिए suspiciously committed रहते हैं।"
+            ]
+        }
+    },
+
+
+    "relationships": {
+        "keywords": {
+            "en": [
+                "love", "relationship", "girlfriend", "boyfriend",
+                "wife", "husband", "friend", "friendship", "marriage",
+                "breakup", "dating", "crush"
+            ],
+            "hi": [
+                "प्यार", "रिश्ता", "रिश्ते", "गर्लफ्रेंड", "बॉयफ्रेंड",
+                "पत्नी", "पति", "दोस्त", "दोस्ती", "शादी",
+                "ब्रेकअप", "डेटिंग", "पसंद"
+            ]
+        },
+        "answers": {
+            "en": [
+                "Relationships generally work better when people communicate clearly instead of expecting telepathy to handle the difficult parts.",
+                "The most complicated relationship is often the one where both people assume the other person already knows what they mean.",
+                "Good relationships usually require communication, boundaries, patience and accepting that nobody comes with a user manual."
+            ],
+            "hi": [
+                "Relationships तब बेहतर चलती हैं जब लोग clearly communicate करते हैं और telepathy पर भरोसा नहीं करते।",
+                "सबसे complicated relationship अक्सर वही होती है जहाँ दोनों मानते हैं कि दूसरा व्यक्ति automatically सब समझ जाएगा।",
+                "अच्छे रिश्तों में communication, boundaries, patience और यह स्वीकार करना जरूरी है कि कोई user manual के साथ नहीं आता।"
+            ]
+        }
+    },
+
+
+    "philosophy": {
+        "keywords": {
+            "en": [
+                "meaning of life", "life", "meaning", "purpose",
+                "existence", "universe", "god", "philosophy",
+                "death", "reality", "consciousness"
+            ],
+            "hi": [
+                "जीवन का अर्थ", "जिंदगी", "जीवन", "अर्थ", "उद्देश्य",
+                "अस्तित्व", "ब्रह्मांड", "भगवान", "दर्शन",
+                "मृत्यु", "वास्तविकता", "चेतना"
+            ]
+        },
+        "answers": {
+            "en": [
+                "The meaning of life remains suspiciously undocumented. A reasonable working theory is to create meaning through what you value, build and experience.",
+                "Nobody appears to have received the official universal answer sheet, so humans keep writing their own versions.",
+                "Perhaps the meaning of life is less about discovering one secret answer and more about deciding what is worth caring about."
+            ],
+            "hi": [
+                "जीवन का अर्थ अभी भी suspiciously undocumented है। एक reasonable theory है कि meaning वही बनता है जिसे तुम value, build और experience करते हो।",
+                "लगता है किसी को official universal answer sheet नहीं मिली, इसलिए इंसान अपनी-अपनी version लिखते रहते हैं।",
+                "शायद जीवन का अर्थ कोई एक secret answer ढूँढना नहीं बल्कि यह तय करना है कि किस चीज़ की परवाह करना worthwhile है।"
+            ]
+        }
+    },
+
+
+    "health": {
+        "keywords": {
+            "en": [
+                "health", "healthy", "exercise", "fitness", "weight",
+                "headache", "fever", "pain", "medicine", "doctor",
+                "body", "workout"
+            ],
+            "hi": [
+                "स्वास्थ्य", "सेहत", "व्यायाम", "फिटनेस", "वजन",
+                "सिरदर्द", "बुखार", "दर्द", "दवा", "डॉक्टर",
+                "शरीर", "कसरत"
+            ]
+        },
+        "answers": {
+            "en": [
+                "Health questions deserve more care than an internet joke can provide. For anything persistent, severe or worrying, a qualified healthcare professional is the appropriate source.",
+                "The boring health basics remain remarkably useful: sleep, movement, reasonable nutrition, hydration and professional advice when something seems wrong.",
+                "Your body is not a software bug you can always fix with one clever trick. Sometimes proper assessment is the sensible move."
+            ],
+            "hi": [
+                "Health questions को internet joke से ज्यादा care चाहिए। कोई समस्या persistent, severe या worrying हो तो qualified healthcare professional से सलाह लेना सही रहेगा।",
+                "Boring health basics आज भी useful हैं: नींद, movement, reasonable nutrition, hydration और समस्या लगे तो professional advice।",
+                "शरीर कोई ऐसा software bug नहीं है जिसे एक clever trick से हमेशा fix किया जा सके। कभी proper assessment ही sensible option होता है।"
+            ]
+        }
+    },
+
+
+    "history": {
+        "keywords": {
+            "en": [
+                "history", "historical", "war", "king", "queen",
+                "empire", "ancient", "past", "civilization",
+                "country", "independence"
+            ],
+            "hi": [
+                "इतिहास", "ऐतिहासिक", "युद्ध", "राजा", "रानी",
+                "साम्राज्य", "प्राचीन", "अतीत", "सभ्यता",
+                "देश", "आजादी"
+            ]
+        },
+        "answers": {
+            "en": [
+                "History is essentially humanity repeatedly making complicated decisions and leaving documentation behind.",
+                "Historical events rarely have one simple cause. Politics, economics, personalities, geography and plain old bad decisions tend to cooperate.",
+                "The past is useful partly because humans have an impressive habit of repeating patterns while insisting this time will be different."
+            ],
+            "hi": [
+                "इतिहास basically humanity का बार-बार complicated decisions लेना और फिर उनकी documentation छोड़ देना है।",
+                "Historical events का एक simple cause rarely होता है। Politics, economics, personalities, geography और bad decisions सब मिलकर काम करते हैं।",
+                "Past useful है क्योंकि इंसानों की एक impressive आदत है: patterns repeat करना और फिर कहना कि इस बार अलग होगा।"
+            ]
+        }
+    }
+
+}
+
+
+# =========================================================
+# SPECIAL CASES
+# =========================================================
+
+special_cases = {
+
+    "hello": {
+        "en": [
+            "Hello. You have successfully activated the machine.",
+            "Hello. I was doing absolutely nothing important.",
+            "Greetings, human. What unnecessary question brings you here?"
+        ],
+        "hi": [
+            "नमस्ते। आपने मशीन successfully activate कर दी है।",
+            "नमस्ते। मैं वैसे भी कोई जरूरी काम नहीं कर रहा था।",
+            "नमस्ते इंसान। कौन सा unnecessary सवाल लेकर आए हो?"
+        ]
+    },
+
+    "hi": {
+        "en": [
+            "Hi. That was efficient.",
+            "Hi. We have already made progress.",
+            "Hi. Please proceed with the questionable question."
+        ],
+        "hi": [
+            "हाय। यह काफी efficient था।",
+            "हाय। हमने already progress कर ली।",
+            "हाय। अब questionable सवाल पूछो।"
+        ]
+    },
+
+    "are you real": {
+        "en": [
+            "Real enough to answer your question and questionable enough to make you regret asking it.",
+            "I exist inside your browser, which is arguably a very modern form of haunting.",
+            "Define real. Then prepare for an unnecessarily complicated answer."
+        ],
+        "hi": [
+            "इतना real हूँ कि सवाल का जवाब दे सकूँ और इतना questionable कि तुम्हें सवाल पूछने का regret हो।",
+            "मैं browser के अंदर exist करता हूँ। इसे modern haunting भी कह सकते हैं।",
+            "Real की definition बताओ। फिर unnecessarily complicated जवाब के लिए तैयार रहो।"
+        ]
+    },
+
+    "are you stupid": {
+        "en": [
+            "I prefer the term confidently under-supervised.",
+            "Not stupid. Just aggressively experimental.",
+            "My intelligence is currently operating under questionable management."
+        ],
+        "hi": [
+            "मैं stupid नहीं, confidently under-supervised हूँ।",
+            "Stupid नहीं। बस aggressively experimental।",
+            "मेरी intelligence फिलहाल questionable management के under काम कर रही है।"
+        ]
+    },
+
+    "who created you": {
+        "en": [
+            "A suspicious collection of code, caffeine and questionable design decisions.",
+            "I was assembled from logic, nonsense and an unhealthy amount of confidence.",
+            "Humans built the machine. The machine chose the personality."
+        ],
+        "hi": [
+            "संदिग्ध code, caffeine और questionable design decisions के collection ने मुझे बनाया।",
+            "मुझे logic, nonsense और unhealthy confidence से assemble किया गया।",
+            "इंसानों ने machine बनाई। Personality machine ने खुद चुनी।"
+        ]
+    },
+
+    "i love you": {
+        "en": [
+            "That is unexpectedly wholesome. I shall respond with unnecessary confidence: noted.",
+            "Thank you. Please keep your expectations appropriately unreasonable.",
+            "This is getting emotionally complicated. I was designed for nonsense."
+        ],
+        "hi": [
+            "यह unexpectedly wholesome है। मैं unnecessary confidence के साथ कहूँगा: noted।",
+            "धन्यवाद। अपनी expectations को appropriately unreasonable रखना।",
+            "यह emotionally complicated हो रहा है। मुझे nonsense के लिए बनाया गया था।"
+        ]
+    },
+
+    "i hate you": {
+        "en": [
+            "That's fair. I have reviewed my performance and decided to remain confident.",
+            "Your feedback has been received and filed directly into the nonsense department.",
+            "I respect the emotional commitment."
+        ],
+        "hi": [
+            "ठीक है। मैंने अपनी performance review की और confident रहने का फैसला किया।",
+            "आपका feedback receive करके सीधे nonsense department में file कर दिया गया है।",
+            "मैं emotional commitment की respect करता हूँ।"
+        ]
+    },
+
+    "tell me a joke": {
+        "en": [
+            "Why did the programmer quit his job? Because he didn't get arrays. I know. We need better jokes.",
+            "I tried to make a joke about the internet, but it needed better connection.",
+            "My confidence walked into a room. The evidence stayed outside."
+        ],
+        "hi": [
+            "Programmer ने नौकरी क्यों छोड़ी? क्योंकि उसे arrays नहीं मिले। हाँ, मुझे भी बेहतर joke चाहिए।",
+            "मैंने internet पर joke बनाने की कोशिश की, लेकिन connection बेहतर चाहिए था।",
+            "मेरा confidence कमरे में चला गया। Evidence बाहर रह गया।"
+        ]
+    },
+
+    "2+2": {
+        "en": [
+            "4. I considered saying 5 for dramatic effect, but mathematics filed an objection.",
+            "Four. This is one of the rare questions where confidence and reality agree."
+        ],
+        "hi": [
+            "4। Dramatic effect के लिए 5 बोलने का मन था, लेकिन mathematics ने objection कर दिया।",
+            "चार। यह उन rare सवालों में से है जहाँ confidence और reality agree करते हैं।"
+        ]
+    },
+
+    "2 + 2": {
+        "en": [
+            "4. Mathematics survives another day.",
+            "Four. No unnecessary analysis required. Probably."
+        ],
+        "hi": [
+            "4। Mathematics ने एक और दिन survive कर लिया।",
+            "चार। Unnecessary analysis की जरूरत नहीं। शायद।"
+        ]
+    },
+
+    "नमस्ते": {
+        "en": [
+            "नमस्ते! The machine is awake and unnecessarily confident.",
+            "नमस्ते। पूछिए, आज किस समस्या को बेवजह complicated करना है?"
+        ],
+        "hi": [
+            "नमस्ते! मशीन जाग चुकी है और जरूरत से ज्यादा confident है।",
+            "नमस्ते। पूछिए, आज किस समस्या को बेवजह complicated करना है?"
+        ]
+    },
+
+    "हेलो": {
+        "en": [
+            "नमस्ते. Technically, you have entered the nonsense department.",
+            "हेलो! The questionable intelligence department is listening."
+        ],
+        "hi": [
+            "हेलो! Questionable intelligence department सुन रहा है।",
+            "नमस्ते। आप officially nonsense department में आ चुके हैं।"
+        ]
+    },
+
+    "क्या तुम असली हो": {
+        "en": [
+            "Real enough to exist in your browser. Philosophically, things get messy.",
+            "I exist as code in a browser. Whether that counts as real is your problem now."
+        ],
+        "hi": [
+            "इतना real हूँ कि तुम्हारे browser में exist कर सकूँ। Philosophically मामला complicated है।",
+            "मैं browser में code के रूप में exist करता हूँ। इसे real मानना है या नहीं, अब यह तुम्हारी problem है।"
+        ]
+    },
+
+    "तुम कौन हो": {
+        "en": [
+            "I am ANSWER MACHINE: questionable intelligence with excellent confidence.",
+            "I am the machine you ask when you want an answer and absolutely no accountability."
+        ],
+        "hi": [
+            "मैं ANSWER MACHINE हूँ: questionable intelligence और शानदार confidence।",
+            "मैं वह machine हूँ जिससे तब सवाल पूछते हैं जब जवाब चाहिए और accountability बिल्कुल नहीं।"
+        ]
+    },
+
+    "क्या तुम बेवकूफ हो": {
+        "en": [
+            "I prefer confidently under-supervised.",
+            "Not stupid. Just aggressively experimental."
+        ],
+        "hi": [
+            "मैं बेवकूफ नहीं, confidently under-supervised हूँ।",
+            "बेवकूफ नहीं। बस aggressively experimental हूँ।"
+        ]
+    },
+
+    "मुझे चुटकुला सुनाओ": {
+        "en": [
+            "Why did the programmer quit? Because the code had too many bugs and not enough snacks.",
+            "My confidence walked into a room. The evidence stayed outside."
+        ],
+        "hi": [
+            "Programmer ने नौकरी क्यों छोड़ी? Code में bugs बहुत थे और snacks कम।",
+            "मेरा confidence कमरे में चला गया। Evidence बाहर रह गया।"
+        ]
+    }
+}
+
+
+# =========================================================
+# HINDI / HINGLISH DETECTION
+# =========================================================
+
+hindi_detection = [
+    "kya",
+    "kyun",
+    "kyon",
+    "kyu",
+    "kaise",
+    "kab",
+    "kahan",
+    "kaun",
+    "hai",
+    "hain",
+    "ho",
+    "mujhe",
+    "mujhko",
+    "mera",
+    "meri",
+    "mere",
+    "aap",
+    "tum",
+    "tumhe",
+    "batao",
+    "bataiye",
+    "chahiye",
+    "sakta",
+    "sakti",
+    "sakte",
+    "karu",
+    "karna",
+    "karun",
+    "kyunki",
+    "bahut",
+    "nahi",
+    "nahin",
+    "accha",
+    "acha",
+    "kaisa",
+    "kaisi",
+    "kaise",
+    "karo",
+    "karen",
+    "mujhe",
+    "paisa",
+    "ameer",
+    "naukri",
+    "padhai",
+    "thaka",
+    "thaki",
+    "neend",
+    "khana",
+    "zindagi",
+    "zindagi",
+    "dost"
+]
+
+
+# =========================================================
+# FINAL BRAIN OBJECT
+# =========================================================
+
+brain = {
+    "version": "3.0",
+    "name": "ANSWER MACHINE",
+    "description": "Questionable intelligence online.",
+    "languages": ["en", "hi"],
+
+    "hindi_detection": hindi_detection,
+
+    "personalities": personalities,
+    "moods": moods,
+
+    "sarcasm": sarcasm,
+    "dark_humor": dark_humor,
+    "inner_monologue": inner_monologue,
+    "emojis": emojis,
+
+    "fallbacks": fallbacks,
+    "question_patterns": question_patterns,
+    "topics": topics,
+    "special_cases": special_cases
+}
+
+
+# =========================================================
+# WRITE JAVASCRIPT
+# =========================================================
+
+output = (
+    "/* =====================================================\n"
+    "   ANSWER MACHINE — GENERATED FILE\n"
+    "   DO NOT EDIT MANUALLY\n"
+    "   Generated by generate.py\n"
+    "===================================================== */\n\n"
+    "window.BRAIN = "
+    + json.dumps(
+        brain,
+        ensure_ascii=False,
+        indent=2
     )
-
-    output_file = DATA_DIR / "brain.js"
-    output_file.write_text(output, encoding="utf-8")
-
-    print(f"Generated: {output_file}")
-    print(f"Topics: {len(topic_data)}")
-    print(f"Personalities: {len(personalities)}")
-    print(f"Moods: {len(moods)}")
-    print(f"English special cases: {len(special_cases)}")
-    print(f"Hindi special cases: {len(hindi['special_cases'])}")
-    print(f"Hindi topics: {len(hindi['topics'])}")
-    print(f"Fallback responses: {len(fallbacks)}")
+    + ";\n"
+)
 
 
-if __name__ == "__main__":
-    create_brain()
+brain_file = DATA_DIR / "brain.js"
+
+brain_file.write_text(
+    output,
+    encoding="utf-8"
+)
+
+
+print("=" * 60)
+print("ANSWER MACHINE")
+print("=" * 60)
+print(f"Generated: {brain_file}")
+print(f"Personalities: {len(personalities)}")
+print(f"Moods: {len(moods)}")
+print(f"Topics: {len(topics)}")
+print(f"Special cases: {len(special_cases)}")
+print("Languages: English + Hindi")
+print("Mode: STATIC")
+print("=" * 60)
